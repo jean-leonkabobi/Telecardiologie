@@ -1,5 +1,4 @@
 import { jsxLocPlugin } from "@builder.io/vite-plugin-jsx-loc";
-import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path from "node:path";
@@ -203,7 +202,7 @@ function vitePluginStorageProxy(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy()];
+const plugins = [react(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy()];
 
 export default defineConfig({
   plugins,
@@ -224,6 +223,19 @@ export default defineConfig({
     port: 3000,
     strictPort: false, // Will find next available port if 3000 is busy
     host: true,
+    // Le frontend de développement est servi par Vite, l'API par Express sur un
+    // autre port. Sans ce proxy, tout appel à /api partirait vers Vite et
+    // renverrait l'index.html.
+    //
+    // Passer par le proxy garde aussi le même origine pour le navigateur : le
+    // cookie du refresh token (SameSite=Strict) est donc bien transmis, ce qui
+    // ne serait pas le cas en appelant http://localhost:8000 directement.
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_TARGET || 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
     allowedHosts: [
       ".manuspre.computer",
       ".manus.computer",

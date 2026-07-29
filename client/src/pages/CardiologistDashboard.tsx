@@ -1,189 +1,177 @@
-import { DashboardLayout } from '@/components/DashboardLayout';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardActions from '@mui/material/CardActions';
+import CardContent from '@mui/material/CardContent';
+import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlined';
+import ErrorIcon from '@mui/icons-material/ErrorOutlined';
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeartOutlined';
+import { useMemo } from 'react';
 import { useLocation } from 'wouter';
-import {
-  AlertCircle,
-  Clock,
-  CheckCircle2,
-  TrendingUp,
-  Activity,
-} from 'lucide-react';
+
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { PageHeader } from '@/components/common/PageHeader';
+import { QueryBoundary } from '@/components/common/QueryBoundary';
+import { SectionCard } from '@/components/common/SectionCard';
+import { StatCard, type StatColor } from '@/components/common/StatCard';
+import { StatusChip } from '@/components/common/StatusChip';
+import { useCardiologistHistory, useReviewQueue } from '@/api/hooks';
+import { formatDuration } from '@/api/types';
+import { useAuth } from '@/contexts/AuthContext';
+
+/** Le tableau de bord montre un aperçu ; la file complète a son propre écran. */
+const PREVIEW_LIMIT = 4;
 
 export default function CardiologistDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
 
-  const stats = [
+  const queue = useReviewQueue();
+  const history = useCardiologistHistory();
+
+  const items = useMemo(() => queue.data ?? [], [queue.data]);
+  const mine = items.filter((i) => i.mine);
+  const available = items.filter((i) => !i.mine);
+
+  const validatedToday = useMemo(() => {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    return (history.data ?? []).filter(
+      (r) => r.reviewedAt !== null && new Date(r.reviewedAt) >= startOfDay,
+    ).length;
+  }, [history.data]);
+
+  const stats: { label: string; value: number; icon: React.ReactNode; color: StatColor }[] = [
     {
       label: 'Urgentes',
-      value: '2',
-      icon: AlertCircle,
-      color: 'text-red-600',
+      value: available.filter((i) => i.priority === 'URGENT').length,
+      icon: <ErrorIcon />,
+      color: 'error',
     },
+    { label: 'En attente', value: available.length, icon: <AccessTimeIcon />, color: 'warning' },
+    { label: 'En cours', value: mine.length, icon: <MonitorHeartIcon />, color: 'primary' },
     {
-      label: 'En attente',
-      value: '8',
-      icon: Clock,
-      color: 'text-yellow-600',
-    },
-    {
-      label: 'En cours',
-      value: '3',
-      icon: Activity,
-      color: 'text-blue-600',
-    },
-    {
-      label: 'Validées aujourd\'hui',
-      value: '12',
-      icon: CheckCircle2,
-      color: 'text-green-600',
+      label: "Conclues aujourd'hui",
+      value: validatedToday,
+      icon: <CheckCircleIcon />,
+      color: 'success',
     },
   ];
 
-  const queue = [
-    {
-      id: 'REQ-002',
-      patient: 'Marie Durand',
-      age: '58 ans',
-      symptoms: 'Douleur thoracique',
-      priority: 'Urgente',
-      time: '14:32',
-      professional: 'Dr. Leclerc',
-    },
-    {
-      id: 'REQ-004',
-      patient: 'Sophie Martin',
-      age: '45 ans',
-      symptoms: 'Palpitations',
-      priority: 'Urgente',
-      time: '14:15',
-      professional: 'Dr. Dupont',
-    },
-    {
-      id: 'REQ-005',
-      patient: 'Luc Moreau',
-      age: '62 ans',
-      symptoms: 'Essoufflement',
-      priority: 'Normale',
-      time: '13:45',
-      professional: 'Dr. Bernard',
-    },
-    {
-      id: 'REQ-006',
-      patient: 'Anne Petit',
-      age: '51 ans',
-      symptoms: 'Fatigue',
-      priority: 'Normale',
-      time: '13:20',
-      professional: 'Dr. Leclerc',
-    },
-  ];
+  // Les demandes déjà prises en charge passent devant : ce sont celles que le
+  // cardiologue doit terminer avant d'en réclamer de nouvelles.
+  const preview = [...mine, ...available].slice(0, PREVIEW_LIMIT);
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Tableau de bord</h1>
-            <p className="text-muted-foreground mt-1">
-              Bienvenue, Dr. {user?.name}
-            </p>
-          </div>
-          <Button
-            onClick={() => navigate('/availability')}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            Gérer disponibilité
-          </Button>
-        </div>
+      <Stack spacing={3}>
+        <PageHeader
+          title="Tableau de bord"
+          subtitle={`Bienvenue, Dr. ${user?.name ?? ''}`}
+          action={
+            <Stack direction="row" spacing={1}>
+              <Button variant="outlined" onClick={() => navigate('/availability')}>
+                Gérer la disponibilité
+              </Button>
+              <Button variant="contained" onClick={() => navigate('/queue')}>
+                Voir la file
+              </Button>
+            </Stack>
+          }
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Card
-                key={stat.label}
-                className="p-6 border border-border hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground font-medium">
-                      {stat.label}
-                    </p>
-                    <p className="text-3xl font-bold text-foreground mt-2">
-                      {stat.value}
-                    </p>
-                  </div>
-                  <Icon className={`w-8 h-8 ${stat.color} opacity-20`} />
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <QueryBoundary
+          isLoading={queue.isLoading}
+          error={queue.error}
+          onRetry={() => void queue.refetch()}
+        >
+          <Stack spacing={3}>
+            <Grid container spacing={2}>
+              {stats.map((stat) => (
+                <Grid key={stat.label} size={{ xs: 12, sm: 6, lg: 3 }}>
+                  <StatCard
+                    label={stat.label}
+                    value={stat.value}
+                    icon={stat.icon}
+                    color={stat.color}
+                  />
+                </Grid>
+              ))}
+            </Grid>
 
-        <Card className="p-6 border border-border">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-foreground">
-              File d\'attente
-            </h2>
-            <span className="text-sm text-muted-foreground">
-              Triée par urgence et chronologie
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            {queue.map((item) => (
-              <div
-                key={item.id}
-                className="p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                onClick={() => navigate(`/analyze/${item.id}`)}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-foreground">
-                        {item.id}
-                      </span>
-                      <Badge
-                        variant={
-                          item.priority === 'Urgente'
-                            ? 'destructive'
-                            : 'secondary'
-                        }
-                      >
-                        {item.priority}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-foreground font-medium">
-                      {item.patient}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.age} • {item.symptoms}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-foreground">
-                      {item.time}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.professional}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                >
-                  Examiner
+            <SectionCard
+              title="File d'attente"
+              subheader="Triée par urgence et chronologie"
+              action={
+                <Button size="small" onClick={() => navigate('/queue')}>
+                  Voir tout
                 </Button>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
+              }
+            >
+              {preview.length === 0 ? (
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  Aucune demande en attente de validation.
+                </Typography>
+              ) : (
+                <Grid container spacing={2}>
+                  {preview.map((item) => (
+                    <Grid key={item.id} size={{ xs: 12, md: 6 }}>
+                      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        <CardContent sx={{ flexGrow: 1 }}>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            sx={{ justifyContent: 'space-between', alignItems: 'start' }}
+                          >
+                            <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                  {item.reference}
+                                </Typography>
+                                <StatusChip
+                                  status={item.priorityLabel}
+                                  statusKey={item.priority}
+                                />
+                              </Stack>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {item.patient.fullName}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                {item.patient.age} ans • {item.symptoms}
+                              </Typography>
+                            </Stack>
+                            <Stack sx={{ textAlign: 'right', flexShrink: 0 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {formatDuration(item.waitedMs)}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                {item.submittedByName ?? '—'}
+                              </Typography>
+                            </Stack>
+                          </Stack>
+                        </CardContent>
+                        <CardActions sx={{ px: 2, pb: 2 }}>
+                          <Button
+                            fullWidth
+                            variant="contained"
+                            onClick={() => navigate(`/analyze/${item.id}`)}
+                          >
+                            {item.mine ? "Reprendre l'analyse" : 'Examiner'}
+                          </Button>
+                        </CardActions>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
+            </SectionCard>
+          </Stack>
+        </QueryBoundary>
+      </Stack>
     </DashboardLayout>
   );
 }

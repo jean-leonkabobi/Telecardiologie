@@ -1,249 +1,211 @@
-import { DashboardLayout } from '@/components/DashboardLayout';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
+import Button from '@mui/material/Button';
+import Grid from '@mui/material/Grid';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import AddIcon from '@mui/icons-material/Add';
+import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlined';
+import DescriptionIcon from '@mui/icons-material/DescriptionOutlined';
+import ErrorIcon from '@mui/icons-material/ErrorOutlined';
+import type { GridColDef } from '@mui/x-data-grid';
+import { useMemo } from 'react';
 import { useLocation } from 'wouter';
-import {
-  Plus,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  Bell,
-  FileText,
-} from 'lucide-react';
+
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { DataTable } from '@/components/common/DataTable';
+import { PageHeader } from '@/components/common/PageHeader';
+import { QueryBoundary } from '@/components/common/QueryBoundary';
+import { SectionCard } from '@/components/common/SectionCard';
+import { StatCard, type StatColor } from '@/components/common/StatCard';
+import { StatusChip } from '@/components/common/StatusChip';
+import { useEcgRequests, useNotifications } from '@/api/hooks';
+import type { EcgRequestSummary } from '@/api/types';
+import { useAuth } from '@/contexts/AuthContext';
+
+/** Les cinq dernières demandes suffisent : le reste vit dans « Mes demandes ». */
+const RECENT_LIMIT = 5;
 
 export default function HealthcareProfessionalDashboard() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
 
-  const stats = [
-    {
-      label: 'Demandes totales',
-      value: '24',
-      icon: FileText,
-      color: 'text-blue-600',
-    },
+  const requests = useEcgRequests();
+  const notifications = useNotifications();
+
+  const all = useMemo(() => requests.data ?? [], [requests.data]);
+
+  const stats: { label: string; value: number; icon: React.ReactNode; color: StatColor }[] = [
+    { label: 'Demandes totales', value: all.length, icon: <DescriptionIcon />, color: 'primary' },
     {
       label: 'En attente',
-      value: '3',
-      icon: Clock,
-      color: 'text-yellow-600',
+      value: all.filter(
+        (r) =>
+          r.status === 'PENDING_ANALYSIS' ||
+          r.status === 'ANALYZING' ||
+          r.status === 'ANALYSIS_FAILED' ||
+          r.status === 'PENDING_REVIEW',
+      ).length,
+      icon: <AccessTimeIcon />,
+      color: 'warning',
     },
     {
       label: 'En cours de validation',
-      value: '5',
-      icon: AlertCircle,
-      color: 'text-orange-600',
+      value: all.filter((r) => r.status === 'UNDER_REVIEW').length,
+      icon: <ErrorIcon />,
+      color: 'info',
     },
     {
       label: 'Terminées',
-      value: '16',
-      icon: CheckCircle2,
-      color: 'text-green-600',
+      value: all.filter((r) => r.reviewedAt !== null).length,
+      icon: <CheckCircleIcon />,
+      color: 'success',
     },
   ];
 
-  const recentRequests = [
+  // Le serveur trie déjà par date décroissante ; on se contente de tronquer.
+  const recent = all.slice(0, RECENT_LIMIT);
+  const recentNotifications = (notifications.data?.notifications ?? []).slice(0, 6);
+
+  const columns: GridColDef<EcgRequestSummary>[] = [
+    { field: 'reference', headerName: 'Référence', width: 120 },
     {
-      id: 'REQ-001',
-      patient: 'Jean Dupont',
-      date: '2026-07-26',
-      priority: 'Normale',
-      status: 'Validée',
-      cardiologist: 'Dr. Martin',
+      field: 'patient',
+      headerName: 'Patient',
+      flex: 1,
+      minWidth: 150,
+      valueGetter: (_value, row) => row.patient.fullName,
     },
     {
-      id: 'REQ-002',
-      patient: 'Marie Durand',
-      date: '2026-07-25',
-      priority: 'Urgente',
-      status: 'En cours de validation',
-      cardiologist: 'Dr. Leclerc',
+      field: 'priorityLabel',
+      headerName: 'Priorité',
+      width: 110,
+      renderCell: ({ row }) => <StatusChip status={row.priorityLabel} statusKey={row.priority} />,
     },
     {
-      id: 'REQ-003',
-      patient: 'Pierre Bernard',
-      date: '2026-07-25',
-      priority: 'Normale',
-      status: 'En attente d\'analyse',
-      cardiologist: '-',
+      field: 'statusLabel',
+      headerName: 'Statut',
+      flex: 1,
+      minWidth: 190,
+      renderCell: ({ row }) => <StatusChip status={row.statusLabel} statusKey={row.status} />,
     },
   ];
-
-  const notifications = [
-    {
-      id: 1,
-      type: 'validated',
-      message: 'Résultat validé pour REQ-001',
-      time: 'Il y a 2 heures',
-    },
-    {
-      id: 2,
-      type: 'processing',
-      message: 'Analyse IA terminée pour REQ-002',
-      time: 'Il y a 4 heures',
-    },
-    {
-      id: 3,
-      type: 'submitted',
-      message: 'Votre demande REQ-003 a été reçue',
-      time: 'Hier',
-    },
-  ];
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: any; icon: any }> = {
-      'Validée': { variant: 'default', icon: '✓' },
-      'En cours de validation': { variant: 'secondary', icon: '⟳' },
-      'En attente d\'analyse': { variant: 'outline', icon: '⏱' },
-    };
-    const config = variants[status] || { variant: 'outline', icon: '?' };
-    return (
-      <Badge variant={config.variant} className="flex items-center gap-1">
-        <span>{config.icon}</span>
-        <span className="text-xs">{status}</span>
-      </Badge>
-    );
-  };
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Tableau de bord</h1>
-            <p className="text-muted-foreground mt-1">
-              Bienvenue, {user?.name}
-            </p>
-          </div>
-          <Button
-            onClick={() => navigate('/new-request')}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Nouvelle demande ECG
-          </Button>
-        </div>
+      <Stack spacing={3}>
+        <PageHeader
+          title="Tableau de bord"
+          subtitle={`Bienvenue, ${user?.name ?? ''}`}
+          action={
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/new-request')}
+            >
+              Nouvelle demande ECG
+            </Button>
+          }
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Card
-                key={stat.label}
-                className="p-6 border border-border hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground font-medium">
-                      {stat.label}
-                    </p>
-                    <p className="text-3xl font-bold text-foreground mt-2">
-                      {stat.value}
-                    </p>
-                  </div>
-                  <Icon className={`w-8 h-8 ${stat.color} opacity-20`} />
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <QueryBoundary
+          isLoading={requests.isLoading}
+          error={requests.error}
+          onRetry={() => void requests.refetch()}
+        >
+          <Stack spacing={3}>
+            <Grid container spacing={2}>
+              {stats.map((stat) => (
+                <Grid key={stat.label} size={{ xs: 12, sm: 6, lg: 3 }}>
+                  <StatCard
+                    label={stat.label}
+                    value={stat.value}
+                    icon={stat.icon}
+                    color={stat.color}
+                  />
+                </Grid>
+              ))}
+            </Grid>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <Card className="p-6 border border-border">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-foreground">
-                  Demandes récentes
-                </h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate('/my-requests')}
-                  className="text-primary hover:bg-primary/10"
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, lg: 8 }}>
+                <SectionCard
+                  title="Demandes récentes"
+                  action={
+                    <Button size="small" onClick={() => navigate('/my-requests')}>
+                      Voir tout
+                    </Button>
+                  }
+                  disableContentPadding
                 >
-                  Voir tout
-                </Button>
-              </div>
+                  {recent.length === 0 ? (
+                    <Typography variant="body2" sx={{ color: 'text.secondary', p: 3 }}>
+                      Vous n'avez encore soumis aucune demande.
+                    </Typography>
+                  ) : (
+                    <DataTable<EcgRequestSummary>
+                      rows={recent}
+                      columns={columns}
+                      height={320}
+                      hideFooter
+                      showToolbar={false}
+                      onRowClick={({ row }) => navigate(`/request/${row.id}`)}
+                      sx={{ '& .MuiDataGrid-row': { cursor: 'pointer' } }}
+                    />
+                  )}
+                </SectionCard>
+              </Grid>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                        Référence
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                        Patient
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                        Priorité
-                      </th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                        Statut
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentRequests.map((req) => (
-                      <tr
-                        key={req.id}
-                        className="border-b border-border hover:bg-muted/50 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/request/${req.id}`)}
-                      >
-                        <td className="py-3 px-4 font-medium text-foreground">
-                          {req.id}
-                        </td>
-                        <td className="py-3 px-4 text-foreground">{req.patient}</td>
-                        <td className="py-3 px-4">
-                          <Badge
-                            variant={
-                              req.priority === 'Urgente'
-                                ? 'destructive'
-                                : 'secondary'
-                            }
-                          >
-                            {req.priority}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">{getStatusBadge(req.status)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          </div>
-
-          <div>
-            <Card className="p-6 border border-border">
-              <div className="flex items-center gap-2 mb-4">
-                <Bell className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-semibold text-foreground">
-                  Notifications
-                </h2>
-              </div>
-
-              <div className="space-y-3">
-                {notifications.map((notif) => (
-                  <div
-                    key={notif.id}
-                    className="p-3 rounded-lg bg-muted/50 border border-border/50 hover:border-border transition-colors cursor-pointer"
-                  >
-                    <p className="text-sm font-medium text-foreground">
-                      {notif.message}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {notif.time}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-        </div>
-      </div>
+              <Grid size={{ xs: 12, lg: 4 }}>
+                <SectionCard
+                  title="Notifications"
+                  action={
+                    <Button size="small" onClick={() => navigate('/notifications')}>
+                      Voir tout
+                    </Button>
+                  }
+                  disableContentPadding
+                >
+                  {recentNotifications.length === 0 ? (
+                    <Typography variant="body2" sx={{ color: 'text.secondary', p: 3 }}>
+                      Aucune notification pour le moment.
+                    </Typography>
+                  ) : (
+                    <List disablePadding>
+                      {recentNotifications.map((notif) => (
+                        <ListItemButton
+                          key={notif.id}
+                          onClick={() =>
+                            navigate(
+                              notif.requestId === null
+                                ? '/notifications'
+                                : `/request/${notif.requestId}`,
+                            )
+                          }
+                        >
+                          <ListItemText
+                            primary={notif.title}
+                            secondary={new Date(notif.createdAt).toLocaleString('fr-FR')}
+                            slotProps={{
+                              primary: {
+                                variant: 'body2',
+                                sx: { fontWeight: notif.read ? 400 : 600 },
+                              },
+                              secondary: { variant: 'caption' },
+                            }}
+                          />
+                        </ListItemButton>
+                      ))}
+                    </List>
+                  )}
+                </SectionCard>
+              </Grid>
+            </Grid>
+          </Stack>
+        </QueryBoundary>
+      </Stack>
     </DashboardLayout>
   );
 }

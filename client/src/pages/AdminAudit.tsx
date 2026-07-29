@@ -1,253 +1,160 @@
+import Chip from '@mui/material/Chip';
+import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import type { GridColDef } from '@mui/x-data-grid';
+import { useMemo, useState } from 'react';
+
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useState } from 'react';
-import { Search, Filter } from 'lucide-react';
+import { DataTable } from '@/components/common/DataTable';
+import { PageHeader } from '@/components/common/PageHeader';
+import { QueryBoundary } from '@/components/common/QueryBoundary';
+import { SectionCard } from '@/components/common/SectionCard';
+import { StatCard } from '@/components/common/StatCard';
+import { StatusChip } from '@/components/common/StatusChip';
+import { useAuditLog } from '@/api/hooks';
+import type { AuditEntry } from '@/api/types';
+
+type StatusFilter = 'all' | 'success' | 'error';
+
+const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
+  all: 'Toutes',
+  success: 'Succès',
+  error: 'Erreurs',
+};
+
+/**
+ * Couleur d'une action selon son verbe.
+ *
+ * Le serveur envoie des libellés déjà rédigés (« Analyse validée », « Connexion
+ * refusée »…) : on colore sur le participe plutôt que de dupliquer côté client
+ * une énumération que le journal n'expose pas.
+ */
+function actionColor(action: string): 'success.main' | 'error.main' | 'warning.main' | 'primary.main' {
+  const normalized = action.toLowerCase();
+  if (normalized.includes('créé') || normalized.includes('validé') || normalized.includes('réussie'))
+    return 'success.main';
+  if (
+    normalized.includes('rejeté') ||
+    normalized.includes('refusé') ||
+    normalized.includes('supprimé') ||
+    normalized.includes('expiré')
+  )
+    return 'error.main';
+  if (
+    normalized.includes('modifié') ||
+    normalized.includes('corrigé') ||
+    normalized.includes('relâché') ||
+    normalized.includes('réinitialisé')
+  )
+    return 'warning.main';
+  return 'primary.main';
+}
 
 export default function AdminAudit() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [actionFilter, setActionFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const query = useAuditLog();
 
-  const auditLogs = [
+  const entries = useMemo(() => query.data ?? [], [query.data]);
+
+  const rows = useMemo(() => {
+    if (statusFilter === 'all') return entries;
+    const wanted = statusFilter === 'success' ? 'Succès' : 'Erreur';
+    return entries.filter((log) => log.status === wanted);
+  }, [entries, statusFilter]);
+
+  const successCount = entries.filter((l) => l.status === 'Succès').length;
+  const errorCount = entries.length - successCount;
+
+  const columns: GridColDef<AuditEntry>[] = [
     {
-      id: 1,
-      timestamp: '2026-07-26 14:32:15',
-      user: 'Dr. Martin Leclerc',
-      action: 'Demande validée',
-      resource: 'REQ-001',
-      status: 'Succès',
-      details: 'ECG normal - Validation approuvée',
+      field: 'timestamp',
+      headerName: 'Horodatage',
+      width: 180,
+      valueGetter: (value: string) => new Date(value),
+      valueFormatter: (value: Date) => value.toLocaleString('fr-FR'),
+    },
+    { field: 'user', headerName: 'Utilisateur', width: 180 },
+    {
+      field: 'action',
+      headerName: 'Action',
+      width: 200,
+      renderCell: ({ value }) => (
+        <Typography variant="body2" sx={{ color: actionColor(value as string), fontWeight: 500 }}>
+          {value as string}
+        </Typography>
+      ),
     },
     {
-      id: 2,
-      timestamp: '2026-07-26 12:45:32',
-      user: 'Dr. Sophie Dupont',
-      action: 'Demande créée',
-      resource: 'REQ-002',
-      status: 'Succès',
-      details: 'Patient: Marie Durand - Priorité: Urgente',
+      field: 'resource',
+      headerName: 'Ressource',
+      width: 160,
+      renderCell: ({ value }) =>
+        (value as string) === '' ? '—' : <Chip label={value as string} variant="outlined" />,
     },
     {
-      id: 3,
-      timestamp: '2026-07-26 10:15:48',
-      user: 'Admin',
-      action: 'Utilisateur créé',
-      resource: 'Dr. Claire Rousseau',
-      status: 'Succès',
-      details: 'Rôle: Cardiologue - Email: claire.rousseau@hospital.fr',
+      field: 'status',
+      headerName: 'Statut',
+      width: 110,
+      renderCell: ({ value }) => <StatusChip status={value as string} />,
     },
-    {
-      id: 4,
-      timestamp: '2026-07-25 16:20:12',
-      user: 'Dr. Bernard',
-      action: 'Demande rejetée',
-      resource: 'REQ-005',
-      status: 'Succès',
-      details: 'Motif: Qualité insuffisante du tracé',
-    },
-    {
-      id: 5,
-      timestamp: '2026-07-25 14:10:55',
-      user: 'Infirmier Moreau',
-      action: 'Fichier uploadé',
-      resource: 'REQ-004',
-      status: 'Succès',
-      details: 'Fichier ECG - Taille: 2.4 MB',
-    },
-    {
-      id: 6,
-      timestamp: '2026-07-25 09:30:22',
-      user: 'Admin',
-      action: 'Paramètres modifiés',
-      resource: 'Système',
-      status: 'Succès',
-      details: 'Délai d\'analyse IA: 5 min → 3 min',
-    },
-    {
-      id: 7,
-      timestamp: '2026-07-24 15:45:33',
-      user: 'Dr. Leclerc',
-      action: 'Accès refusé',
-      resource: 'Admin Panel',
-      status: 'Erreur',
-      details: 'Permissions insuffisantes',
-    },
-    {
-      id: 8,
-      timestamp: '2026-07-24 10:20:15',
-      user: 'Admin',
-      action: 'Utilisateur suspendu',
-      resource: 'Marc Petit',
-      status: 'Succès',
-      details: 'Raison: Inactivité prolongée',
-    },
+    { field: 'details', headerName: 'Détails', flex: 1, minWidth: 260 },
   ];
-
-  const filteredLogs = auditLogs.filter((log) => {
-    const matchesSearch =
-      log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.resource.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.action.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesFilter =
-      actionFilter === 'all' ||
-      (actionFilter === 'success' && log.status === 'Succès') ||
-      (actionFilter === 'error' && log.status === 'Erreur');
-
-    return matchesSearch && matchesFilter;
-  });
-
-  const getActionColor = (action: string) => {
-    if (action.includes('créé') || action.includes('validé')) return 'text-green-600';
-    if (action.includes('rejeté') || action.includes('refusé')) return 'text-red-600';
-    if (action.includes('modifié') || action.includes('suspendu')) return 'text-orange-600';
-    return 'text-blue-600';
-  };
-
-  const getStatusBadge = (status: string) => {
-    return (
-      <Badge variant={status === 'Succès' ? 'default' : 'destructive'}>
-        {status}
-      </Badge>
-    );
-  };
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Journal d'audit</h1>
-          <p className="text-muted-foreground mt-1">
-            Consultez l'historique complet des actions et modifications
-          </p>
-        </div>
+      <Stack spacing={3}>
+        <PageHeader
+          title="Journal d'audit"
+          subtitle="Historique des actions réalisées sur la plateforme"
+        />
 
-        {/* Filters */}
-        <Card className="p-4 border border-border">
-          <div className="flex flex-col gap-4">
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Rechercher par utilisateur, ressource ou action..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-input rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </div>
+        <QueryBoundary
+          isLoading={query.isLoading}
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        >
+          <Stack spacing={3}>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <StatCard label="Événements" value={entries.length} color="primary" />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <StatCard label="Succès" value={successCount} color="success" />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <StatCard label="Erreurs" value={errorCount} color="error" />
+              </Grid>
+            </Grid>
 
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={() => setActionFilter('all')}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                  actionFilter === 'all'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground hover:bg-muted/80'
-                }`}
-              >
-                Tous
-              </button>
-              <button
-                onClick={() => setActionFilter('success')}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                  actionFilter === 'success'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-muted text-foreground hover:bg-muted/80'
-                }`}
-              >
-                Succès
-              </button>
-              <button
-                onClick={() => setActionFilter('error')}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                  actionFilter === 'error'
-                    ? 'bg-red-600 text-white'
-                    : 'bg-muted text-foreground hover:bg-muted/80'
-                }`}
-              >
-                Erreurs
-              </button>
-            </div>
-          </div>
-        </Card>
-
-        {/* Audit Logs Table */}
-        <Card className="p-6 border border-border overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Timestamp
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Utilisateur
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Action
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Ressource
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Statut
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Détails
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLogs.map((log) => (
-                  <tr
-                    key={log.id}
-                    className="border-b border-border hover:bg-muted/50 transition-colors"
-                  >
-                    <td className="py-3 px-4 text-muted-foreground text-xs font-mono">
-                      {log.timestamp}
-                    </td>
-                    <td className="py-3 px-4 text-foreground font-medium">
-                      {log.user}
-                    </td>
-                    <td className={`py-3 px-4 font-medium ${getActionColor(log.action)}`}>
-                      {log.action}
-                    </td>
-                    <td className="py-3 px-4 text-foreground">
-                      <Badge variant="outline">{log.resource}</Badge>
-                    </td>
-                    <td className="py-3 px-4">{getStatusBadge(log.status)}</td>
-                    <td className="py-3 px-4 text-muted-foreground text-xs max-w-xs truncate">
-                      {log.details}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        {/* Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="p-4 border border-border">
-            <p className="text-sm text-muted-foreground">Total d'actions</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{auditLogs.length}</p>
-          </Card>
-          <Card className="p-4 border border-border">
-            <p className="text-sm text-muted-foreground">Actions réussies</p>
-            <p className="text-2xl font-bold text-green-600 mt-1">
-              {auditLogs.filter((l) => l.status === 'Succès').length}
-            </p>
-          </Card>
-          <Card className="p-4 border border-border">
-            <p className="text-sm text-muted-foreground">Erreurs</p>
-            <p className="text-2xl font-bold text-red-600 mt-1">
-              {auditLogs.filter((l) => l.status === 'Erreur').length}
-            </p>
-          </Card>
-        </div>
-      </div>
+            <SectionCard
+              title="Événements"
+              subheader="Les 200 entrées les plus récentes"
+              action={
+                <Stack direction="row" spacing={1}>
+                  {(Object.keys(STATUS_FILTER_LABELS) as StatusFilter[]).map((key) => (
+                    <Chip
+                      key={key}
+                      label={STATUS_FILTER_LABELS[key]}
+                      color={statusFilter === key ? 'primary' : 'default'}
+                      variant={statusFilter === key ? 'filled' : 'outlined'}
+                      onClick={() => setStatusFilter(key)}
+                    />
+                  ))}
+                </Stack>
+              }
+              disableContentPadding
+            >
+              <DataTable<AuditEntry>
+                rows={rows}
+                columns={columns}
+                height={560}
+                initialState={{ sorting: { sortModel: [{ field: 'timestamp', sort: 'desc' }] } }}
+              />
+            </SectionCard>
+          </Stack>
+        </QueryBoundary>
+      </Stack>
     </DashboardLayout>
   );
 }

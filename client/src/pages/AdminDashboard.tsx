@@ -1,183 +1,179 @@
+import Button from '@mui/material/Button';
+import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlined';
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeartOutlined';
+import PeopleIcon from '@mui/icons-material/PeopleOutlined';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import type { GridColDef } from '@mui/x-data-grid';
+import { useMemo } from 'react';
+import { useLocation } from 'wouter';
+
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/common/DataTable';
+import { PageHeader } from '@/components/common/PageHeader';
+import { QueryBoundary } from '@/components/common/QueryBoundary';
+import { SectionCard } from '@/components/common/SectionCard';
+import { StatCard, type StatColor } from '@/components/common/StatCard';
+import { StatusChip } from '@/components/common/StatusChip';
+import { useStatistics, useUsers } from '@/api/hooks';
+import { formatDuration, type ManagedUser } from '@/api/types';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  Users,
-  Activity,
-  TrendingUp,
-  Clock,
-  CheckCircle2,
-  BarChart3,
-} from 'lucide-react';
+
+/** Statuts qui comptent comme « demande encore en circulation ». */
+const IN_FLIGHT = ['PENDING_ANALYSIS', 'ANALYZING', 'ANALYSIS_FAILED', 'PENDING_REVIEW', 'UNDER_REVIEW'];
+
+const RECENT_USER_LIMIT = 6;
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
 
-  const stats = [
-    {
-      label: 'Utilisateurs totaux',
-      value: '156',
-      icon: Users,
-      color: 'text-blue-600',
-    },
-    {
-      label: 'Professionnels actifs',
-      value: '42',
-      icon: Activity,
-      color: 'text-green-600',
-    },
-    {
-      label: 'Cardiologues actifs',
-      value: '18',
-      icon: TrendingUp,
-      color: 'text-purple-600',
-    },
-    {
-      label: 'Demandes en attente',
-      value: '23',
-      icon: Clock,
-      color: 'text-yellow-600',
-    },
-    {
-      label: 'Analyses terminées',
-      value: '1,247',
-      icon: CheckCircle2,
-      color: 'text-green-600',
-    },
-    {
-      label: 'Temps moyen',
-      value: '2h 15m',
-      icon: BarChart3,
-      color: 'text-indigo-600',
-    },
-  ];
+  const statistics = useStatistics();
+  const users = useUsers();
 
-  const users = [
+  const totals = statistics.data?.totals;
+
+  const pending = useMemo(
+    () =>
+      (statistics.data?.byStatus ?? [])
+        .filter((s) => IN_FLIGHT.includes(s.status))
+        .reduce((sum, s) => sum + s.count, 0),
+    [statistics.data],
+  );
+
+  const stats: { label: string; value: string | number; icon: React.ReactNode; color: StatColor }[] =
+    [
+      {
+        label: 'Utilisateurs totaux',
+        value: totals?.activeUsers ?? 0,
+        icon: <PeopleIcon />,
+        color: 'primary',
+      },
+      {
+        label: 'Professionnels de santé',
+        value: totals?.professionals ?? 0,
+        icon: <MonitorHeartIcon />,
+        color: 'success',
+      },
+      {
+        label: 'Cardiologues',
+        value: totals?.cardiologists ?? 0,
+        icon: <TrendingUpIcon />,
+        color: 'info',
+      },
+      {
+        label: 'Demandes en attente',
+        value: pending,
+        icon: <AccessTimeIcon />,
+        color: 'warning',
+      },
+      {
+        label: 'Analyses conclues',
+        value: totals?.concluded ?? 0,
+        icon: <CheckCircleIcon />,
+        color: 'success',
+      },
+      {
+        label: 'Temps moyen de validation',
+        value: formatDuration(totals?.averageReviewDurationMs ?? null),
+        icon: <BarChartIcon />,
+        color: 'secondary',
+      },
+    ];
+
+  // Les derniers comptes connectés disent bien plus que les derniers créés :
+  // c'est l'activité réelle de la plateforme.
+  const recentUsers = useMemo(() => {
+    return [...(users.data ?? [])]
+      .sort((a, b) => {
+        const left = a.lastLoginAt === null ? 0 : new Date(a.lastLoginAt).getTime();
+        const right = b.lastLoginAt === null ? 0 : new Date(b.lastLoginAt).getTime();
+        return right - left;
+      })
+      .slice(0, RECENT_USER_LIMIT);
+  }, [users.data]);
+
+  const columns: GridColDef<ManagedUser>[] = [
+    { field: 'name', headerName: 'Nom', flex: 1.2, minWidth: 180 },
+    { field: 'email', headerName: 'Email', flex: 1.4, minWidth: 220 },
+    { field: 'roleLabel', headerName: 'Rôle', flex: 1, minWidth: 170 },
     {
-      id: 1,
-      name: 'Dr. Martin Leclerc',
-      email: 'martin.leclerc@hospital.fr',
-      role: 'Cardiologue',
-      status: 'Actif',
-      lastLogin: '2026-07-26 14:32',
+      field: 'status',
+      headerName: 'Statut',
+      width: 120,
+      renderCell: ({ value }) => <StatusChip status={value as string} />,
     },
     {
-      id: 2,
-      name: 'Dr. Sophie Dupont',
-      email: 'sophie.dupont@hospital.fr',
-      role: 'Professionnel de santé',
-      status: 'Actif',
-      lastLogin: '2026-07-26 13:15',
-    },
-    {
-      id: 3,
-      name: 'Dr. Pierre Bernard',
-      email: 'pierre.bernard@hospital.fr',
-      role: 'Cardiologue',
-      status: 'Inactif',
-      lastLogin: '2026-07-25 09:45',
-    },
-    {
-      id: 4,
-      name: 'Infirmier Jean Moreau',
-      email: 'jean.moreau@hospital.fr',
-      role: 'Professionnel de santé',
-      status: 'Actif',
-      lastLogin: '2026-07-26 14:20',
+      field: 'lastLoginAt',
+      headerName: 'Dernière connexion',
+      width: 180,
+      valueGetter: (value: string | null) => (value === null ? null : new Date(value)),
+      valueFormatter: (value: Date | null) =>
+        value === null ? 'Jamais' : value.toLocaleString('fr-FR'),
     },
   ];
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Tableau de bord administrateur</h1>
-          <p className="text-muted-foreground mt-1">
-            Bienvenue, {user?.name}
-          </p>
-        </div>
+      <Stack spacing={3}>
+        <PageHeader
+          title="Tableau de bord administrateur"
+          subtitle={`Bienvenue, ${user?.name ?? ''}`}
+          action={
+            <Stack direction="row" spacing={1}>
+              <Button variant="outlined" onClick={() => navigate('/admin/statistics')}>
+                Statistiques
+              </Button>
+              <Button variant="contained" onClick={() => navigate('/admin/users')}>
+                Utilisateurs
+              </Button>
+            </Stack>
+          }
+        />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {stats.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Card
-                key={stat.label}
-                className="p-6 border border-border hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground font-medium">
-                      {stat.label}
-                    </p>
-                    <p className="text-3xl font-bold text-foreground mt-2">
-                      {stat.value}
-                    </p>
-                  </div>
-                  <Icon className={`w-8 h-8 ${stat.color} opacity-20`} />
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <QueryBoundary
+          isLoading={statistics.isLoading}
+          error={statistics.error}
+          onRetry={() => void statistics.refetch()}
+        >
+          <Stack spacing={3}>
+            <Grid container spacing={2}>
+              {stats.map((stat) => (
+                <Grid key={stat.label} size={{ xs: 12, sm: 6, lg: 4 }}>
+                  <StatCard
+                    label={stat.label}
+                    value={stat.value}
+                    icon={stat.icon}
+                    color={stat.color}
+                  />
+                </Grid>
+              ))}
+            </Grid>
 
-        <Card className="p-6 border border-border">
-          <h2 className="text-lg font-semibold text-foreground mb-4">
-            Utilisateurs récents
-          </h2>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Nom
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Email
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Rôle
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Statut
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Dernière connexion
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr
-                    key={u.id}
-                    className="border-b border-border hover:bg-muted/50 transition-colors"
-                  >
-                    <td className="py-3 px-4 font-medium text-foreground">
-                      {u.name}
-                    </td>
-                    <td className="py-3 px-4 text-foreground">{u.email}</td>
-                    <td className="py-3 px-4">
-                      <Badge variant="secondary">{u.role}</Badge>
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge
-                        variant={u.status === 'Actif' ? 'default' : 'outline'}
-                      >
-                        {u.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-muted-foreground text-xs">
-                      {u.lastLogin}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
+            <SectionCard
+              title="Utilisateurs récemment actifs"
+              action={
+                <Button size="small" onClick={() => navigate('/admin/users')}>
+                  Voir tout
+                </Button>
+              }
+              disableContentPadding
+            >
+              <DataTable<ManagedUser>
+                rows={recentUsers}
+                columns={columns}
+                height={360}
+                hideFooter
+                showToolbar={false}
+                loading={users.isLoading}
+              />
+            </SectionCard>
+          </Stack>
+        </QueryBoundary>
+      </Stack>
     </DashboardLayout>
   );
 }

@@ -1,122 +1,279 @@
-import { DashboardLayout } from '@/components/DashboardLayout';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useLocation } from 'wouter';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Divider from '@mui/material/Divider';
+import Grid from '@mui/material/Grid';
+import IconButton from '@mui/material/IconButton';
+import LinearProgress from '@mui/material/LinearProgress';
+import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
+import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlined';
+import CloseIcon from '@mui/icons-material/Close';
+import DownloadIcon from '@mui/icons-material/Download';
 import { useState } from 'react';
-import { AlertCircle, Download, CheckCircle2, X } from 'lucide-react';
+import { useLocation, useParams } from 'wouter';
+
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { DetailItem } from '@/components/common/DetailItem';
+import { InfoPanel } from '@/components/common/InfoPanel';
+import { PageHeader } from '@/components/common/PageHeader';
+import { QueryBoundary } from '@/components/common/QueryBoundary';
+import { SectionCard } from '@/components/common/SectionCard';
+import { StatusChip } from '@/components/common/StatusChip';
+import {
+  useClaimEcgRequest,
+  useEcgFileUrl,
+  useEcgRequest,
+  useReleaseEcgRequest,
+  useReviewEcgRequest,
+} from '@/api/hooks';
+import type { EcgRequestFullDetail, ReviewAction } from '@/api/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { ApiError } from '@/lib/apiClient';
+import { confirm, notify } from '@/lib/alerts';
+
+const DECISION_TITLES: Record<ReviewAction, string> = {
+  validate: 'Confirmer la validation',
+  correct: "Corriger l'interprétation",
+  reject: 'Motif du rejet',
+};
+
+const DECISION_SUCCESS: Record<ReviewAction, string> = {
+  validate: 'Analyse validée',
+  correct: 'Correction enregistrée',
+  reject: 'Demande rejetée',
+};
 
 export default function ECGAnalysis() {
-  const [, navigate] = useLocation();
-  const [action, setAction] = useState<'validate' | 'correct' | 'reject' | null>(null);
-  const [comment, setComment] = useState('');
-
-  const requestData = {
-    id: 'REQ-002',
-    patient: {
-      name: 'Marie Durand',
-      age: 58,
-      gender: 'F',
-      symptoms: 'Douleur thoracique, essoufflement',
-      medicalHistory: 'Hypertension, diabète',
-      priority: 'Urgente',
-    },
-    aiAnalysis: {
-      rhythm: 'Rythme sinusal régulier',
-      heartRate: '78 bpm',
-      anomalies: 'Sus-décalage du segment ST en dérivations II, III, aVF',
-      confidence: '92%',
-      interpretation:
-        'Possible infarctus du myocarde inférieur. Nécessite une évaluation clinique urgente.',
-    },
-  };
-
-  const handleAction = (actionType: 'validate' | 'correct' | 'reject') => {
-    setAction(actionType);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!comment && (action === 'correct' || action === 'reject')) {
-      alert('Un commentaire est obligatoire pour cette action');
-      return;
-    }
-    navigate('/dashboard');
-  };
+  const params = useParams<{ id: string }>();
+  const query = useEcgRequest(params.id);
 
   return (
     <DashboardLayout>
-      <div className="max-w-6xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Analyse ECG</h1>
-            <p className="text-muted-foreground mt-1">{requestData.id}</p>
-          </div>
-          <Badge variant="destructive" className="text-base px-3 py-1">
-            {requestData.patient.priority}
-          </Badge>
-        </div>
+      <Box sx={{ maxWidth: 1280, mx: 'auto' }}>
+        <QueryBoundary
+          isLoading={query.isLoading}
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        >
+          {query.data && <AnalysisView request={query.data} />}
+        </QueryBoundary>
+      </Box>
+    </DashboardLayout>
+  );
+}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Zone 1: Patient Information */}
-          <div className="lg:col-span-1">
-            <Card className="p-6 border border-border space-y-4">
-              <h2 className="text-lg font-semibold text-foreground">
-                Informations du patient
-              </h2>
+function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
+  const [, navigate] = useLocation();
+  const { user } = useAuth();
 
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Nom</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {requestData.patient.name}
-                  </p>
-                </div>
+  const [decision, setDecision] = useState<ReviewAction | null>(null);
+  const [comment, setComment] = useState('');
+  const [diagnosis, setDiagnosis] = useState('');
+  const [errors, setErrors] = useState<{ comment?: boolean; diagnosis?: boolean }>({});
 
-                <div>
-                  <p className="text-xs text-muted-foreground">Âge</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {requestData.patient.age} ans
-                  </p>
-                </div>
+  const claim = useClaimEcgRequest();
+  const release = useReleaseEcgRequest();
+  const review = useReviewEcgRequest();
+  const fileUrl = useEcgFileUrl();
 
-                <div>
-                  <p className="text-xs text-muted-foreground">Sexe</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {requestData.patient.gender === 'M' ? 'Masculin' : 'Féminin'}
-                  </p>
-                </div>
+  const mine = request.assignedToId !== null && request.assignedToId === user?.id;
+  const analysisRunning = request.status === 'PENDING_ANALYSIS' || request.status === 'ANALYZING';
 
-                <div>
-                  <p className="text-xs text-muted-foreground">Symptômes</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {requestData.patient.symptoms}
-                  </p>
-                </div>
+  // « Corriger » impose les deux champs : sans conclusion de remplacement, la
+  // correction ne dit pas ce qui remplace l'interprétation de l'IA.
+  const commentRequired = decision === 'correct' || decision === 'reject';
+  const diagnosisRequired = decision === 'validate' || decision === 'correct';
 
-                <div>
-                  <p className="text-xs text-muted-foreground">Antécédents</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {requestData.patient.medicalHistory}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          </div>
+  const resetDecision = () => {
+    setDecision(null);
+    setComment('');
+    setDiagnosis('');
+    setErrors({});
+  };
 
-          {/* Zone 2: ECG Visualization */}
-          <div className="lg:col-span-1">
-            <Card className="p-6 border border-border space-y-4">
-              <h2 className="text-lg font-semibold text-foreground">
-                Tracé ECG
-              </h2>
+  const startDecision = (next: ReviewAction) => {
+    setDecision(next);
+    setErrors({});
+    // Pré-remplir avec l'interprétation de l'IA fait gagner du temps sur une
+    // validation, et donne un point de départ concret à une correction.
+    setDiagnosis(next === 'reject' ? '' : (request.analysis?.interpretation ?? ''));
+  };
 
-              <div className="bg-muted rounded-lg p-8 flex items-center justify-center min-h-[300px]">
-                <div className="text-center">
-                  <svg
-                    className="w-full h-32 text-primary/30 mx-auto mb-3"
+  const handleClaim = async () => {
+    try {
+      await claim.mutateAsync(request.id);
+      notify.success('Demande prise en charge', `${request.reference} vous est assignée.`);
+    } catch (error) {
+      notify.error(
+        'Prise en charge impossible',
+        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+      );
+    }
+  };
+
+  const handleRelease = async () => {
+    const confirmed = await confirm({
+      title: 'Relâcher la demande ?',
+      text: 'Elle retournera dans la file commune et un confrère pourra la reprendre.',
+      confirmLabel: 'Relâcher',
+    });
+    if (!confirmed) return;
+
+    try {
+      await release.mutateAsync(request.id);
+      notify.success('Demande relâchée', `${request.reference} est de retour dans la file.`);
+      navigate('/queue');
+    } catch (error) {
+      notify.error(
+        'Impossible de relâcher',
+        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+      );
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!decision) return;
+
+    const nextErrors = {
+      comment: commentRequired && comment.trim() === '',
+      diagnosis: diagnosisRequired && diagnosis.trim() === '',
+    };
+    if (nextErrors.comment || nextErrors.diagnosis) {
+      setErrors(nextErrors);
+      notify.error('Formulaire incomplet', 'Les champs obligatoires doivent être renseignés.');
+      return;
+    }
+
+    try {
+      await review.mutateAsync({
+        id: request.id,
+        decision,
+        comment: comment.trim() === '' ? undefined : comment.trim(),
+        finalDiagnosis: diagnosis.trim() === '' ? undefined : diagnosis.trim(),
+      });
+      notify.success(DECISION_SUCCESS[decision], `${request.reference} est conclue.`);
+      navigate('/queue');
+    } catch (error) {
+      notify.error(
+        'Enregistrement impossible',
+        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+      );
+    }
+  };
+
+  const handleDownload = async () => {
+    try {
+      const { url } = await fileUrl.mutateAsync(request.id);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      notify.error(
+        'Téléchargement impossible',
+        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+      );
+    }
+  };
+
+  return (
+    <Stack spacing={3}>
+      <PageHeader
+        title="Analyse ECG"
+        subtitle={`${request.reference} · ${request.patient.fullName}`}
+        action={
+          <Stack direction="row" spacing={1}>
+            <StatusChip status={request.priorityLabel} statusKey={request.priority} size="medium" />
+            <StatusChip status={request.statusLabel} statusKey={request.status} size="medium" />
+          </Stack>
+        }
+      />
+
+      {request.status !== 'UNDER_REVIEW' && request.reviewedAt === null && !analysisRunning && (
+        <InfoPanel tone="warning" title="Demande non prise en charge">
+          <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
+            <Typography variant="body2">
+              Vous devez prendre la demande en charge avant de pouvoir rendre une conclusion.
+            </Typography>
+            <Button variant="contained" onClick={() => void handleClaim()} loading={claim.isPending}>
+              Prendre en charge
+            </Button>
+          </Stack>
+        </InfoPanel>
+      )}
+
+      {request.status === 'UNDER_REVIEW' && !mine && (
+        <InfoPanel tone="warning" title="Demande détenue par un confrère">
+          {request.assignedToName ?? 'Un autre cardiologue'} examine actuellement ce tracé.
+        </InfoPanel>
+      )}
+
+      {request.reviewedAt !== null && (
+        <InfoPanel tone="info" title={`Conclusion rendue — ${request.reviewDecisionLabel}`}>
+          <Stack spacing={1} sx={{ mt: 1 }}>
+            {request.finalDiagnosis && (
+              <DetailItem label="Diagnostic retenu" value={request.finalDiagnosis} />
+            )}
+            {request.reviewComment && (
+              <DetailItem label="Commentaire" value={request.reviewComment} />
+            )}
+            <DetailItem
+              label="Par"
+              value={`${request.reviewedByName ?? '—'} le ${new Date(request.reviewedAt).toLocaleString('fr-FR')}`}
+            />
+          </Stack>
+        </InfoPanel>
+      )}
+
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <SectionCard title="Informations du patient">
+            <Stack spacing={2}>
+              <DetailItem label="Nom" value={request.patient.fullName} />
+              <DetailItem label="Référence patient" value={request.patient.reference} />
+              <DetailItem label="Âge" value={`${request.patient.age} ans`} />
+              <DetailItem label="Sexe" value={request.patient.genderLabel} />
+              <DetailItem label="Symptômes" value={request.symptoms} />
+              <DetailItem label="Contexte clinique" value={request.clinicalContext ?? '—'} />
+              <DetailItem label="Antécédents" value={request.medicalHistory ?? '—'} />
+              <DetailItem label="Commentaires" value={request.additionalComments ?? '—'} />
+              <Divider />
+              <DetailItem
+                label="Soumise par"
+                value={`${request.submittedByName ?? '—'} le ${new Date(request.createdAt).toLocaleString('fr-FR')}`}
+              />
+            </Stack>
+          </SectionCard>
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <SectionCard title="Tracé ECG">
+            <Stack spacing={2}>
+              {/*
+                Aperçu décoratif : ce tracé est statique, il ne reflète pas le
+                signal du patient. Un rendu ECG réel (12 dérivations, grille
+                25 mm/s · 10 mm/mV) reste à implémenter — le fichier original
+                est en revanche téléchargeable ci-dessous.
+              */}
+              <Paper
+                variant="outlined"
+                sx={{
+                  bgcolor: 'surfaceMuted',
+                  p: 3,
+                  minHeight: 300,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Stack spacing={1.5} sx={{ width: '100%', alignItems: 'center' }}>
+                  <Box
+                    component="svg"
                     viewBox="0 0 300 100"
                     preserveAspectRatio="none"
+                    sx={{ width: '100%', height: 128, color: 'primary.main', opacity: 0.35 }}
                   >
                     <polyline
                       points="0,50 10,50 15,40 20,50 30,50 40,45 50,50 60,50 70,35 80,50 90,50 100,48 110,50 120,50 130,40 140,50 150,50 160,45 170,50 180,50 190,35 200,50 210,50 220,48 230,50 240,50 250,40 260,50 270,50 280,45 290,50 300,50"
@@ -124,169 +281,216 @@ export default function ECGAnalysis() {
                       stroke="currentColor"
                       strokeWidth="2"
                     />
-                  </svg>
-                  <p className="text-sm text-muted-foreground">
-                    Aperçu du tracé ECG
-                  </p>
-                </div>
-              </div>
+                  </Box>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    Aperçu — le fichier réel est {request.file.name}
+                  </Typography>
+                </Stack>
+              </Paper>
 
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1">
-                  Zoom
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1">
-                  Déplacer
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => {}}
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
-              </div>
-            </Card>
-          </div>
+              <Stack direction="row" spacing={1} sx={{ justifyContent: 'center' }}>
+                <Tooltip title="Télécharger le tracé original">
+                  <span>
+                    <IconButton onClick={() => void handleDownload()} disabled={fileUrl.isPending}>
+                      <DownloadIcon />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </Stack>
 
-          {/* Zone 3: Analysis & Interpretation */}
-          <div className="lg:col-span-1">
-            <Card className="p-6 border border-border space-y-4">
-              <h2 className="text-lg font-semibold text-foreground">
-                Interprétation
-              </h2>
+              <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
+                {request.file.mimeType} · {(request.file.sizeBytes / 1024).toFixed(0)} Ko
+              </Typography>
+            </Stack>
+          </SectionCard>
+        </Grid>
 
-              {/* AI Analysis */}
-              <div className="space-y-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertCircle className="w-4 h-4 text-blue-600" />
-                  <p className="text-xs font-medium text-blue-900">
-                    Interprétation proposée par l'IA
-                  </p>
-                </div>
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <SectionCard title="Interprétation">
+            <Stack spacing={2}>
+              {analysisRunning && (
+                <InfoPanel title="Analyse en cours">
+                  <Stack spacing={1.5} sx={{ mt: 1 }}>
+                    <Typography variant="body2">
+                      Le moteur d'analyse traite le tracé. Cette page se met à jour toute seule.
+                    </Typography>
+                    <LinearProgress />
+                  </Stack>
+                </InfoPanel>
+              )}
 
-                <div>
-                  <p className="text-xs text-muted-foreground">Rythme</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {requestData.aiAnalysis.rhythm}
-                  </p>
-                </div>
+              {!analysisRunning && request.analysis === null && (
+                <InfoPanel tone="warning" title="Analyse automatique indisponible">
+                  <Stack spacing={1} sx={{ mt: 1 }}>
+                    <Typography variant="body2">
+                      {request.analysisFailureReason ??
+                        "Le moteur d'analyse n'a pas pu traiter ce tracé."}
+                    </Typography>
+                    <Typography variant="caption">
+                      {request.analysisAttempts} tentative
+                      {request.analysisAttempts > 1 ? 's' : ''}. Le tracé reste consultable : votre
+                      lecture prime sur l'aide automatique.
+                    </Typography>
+                  </Stack>
+                </InfoPanel>
+              )}
 
-                <div>
-                  <p className="text-xs text-muted-foreground">Fréquence cardiaque</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {requestData.aiAnalysis.heartRate}
-                  </p>
-                </div>
+              {request.analysis && !request.analysis.measuredSignal && (
+                <InfoPanel tone="warning" title="Tracé non lu par l'analyseur">
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    Aucune mesure n'a pu être extraite du fichier : l'avis ci-dessous s'appuie
+                    uniquement sur le dossier clinique. Rythme et fréquence restent à établir par
+                    votre lecture.
+                  </Typography>
+                </InfoPanel>
+              )}
 
-                <div>
-                  <p className="text-xs text-muted-foreground">Anomalies</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {requestData.aiAnalysis.anomalies}
-                  </p>
-                </div>
+              {request.analysis && (
+                <InfoPanel title="Interprétation proposée par l'IA">
+                  <Stack spacing={1.5} sx={{ mt: 1 }}>
+                    <DetailItem label="Rythme" value={request.analysis.rhythmLabel} />
+                    <DetailItem
+                      label="Fréquence cardiaque"
+                      value={request.analysis.heartRateLabel}
+                    />
+                    <DetailItem
+                      label={
+                        request.analysis.measuredSignal ? 'Anomalies' : 'Points à vérifier'
+                      }
+                      value={
+                        request.analysis.anomalies.length === 0 ? (
+                          'Aucune anomalie détectée'
+                        ) : (
+                          <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+                            {request.analysis.anomalies.map((anomaly) => (
+                              <Chip key={anomaly} label={anomaly} size="small" color="warning" />
+                            ))}
+                          </Stack>
+                        )
+                      }
+                    />
+                    <DetailItem
+                      label="Score de confiance"
+                      value={request.analysis.confidenceLabel}
+                    />
+                    <DetailItem label="Conclusion" value={request.analysis.interpretation} />
+                    <Divider />
+                    <Typography variant="caption">
+                      Modèle {request.analysis.modelVersion} · aide à la décision, non validée.
+                    </Typography>
+                  </Stack>
+                </InfoPanel>
+              )}
 
-                <div>
-                  <p className="text-xs text-muted-foreground">Score de confiance</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {requestData.aiAnalysis.confidence}
-                  </p>
-                </div>
-
-                <div className="pt-2 border-t border-blue-200">
-                  <p className="text-xs text-blue-900">
-                    ⚠️ Ce résultat n'est pas encore validé
-                  </p>
-                </div>
-              </div>
-
-              {/* Cardiologist Diagnosis */}
-              {!action && (
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-foreground">
+              {mine && !decision && (
+                <Stack spacing={1.5}>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
                     Avis du cardiologue
-                  </p>
-                  <div className="flex gap-2">
+                  </Typography>
+                  <Stack direction="row" spacing={1}>
                     <Button
-                      onClick={() => handleAction('validate')}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                      fullWidth
+                      variant="contained"
+                      color="success"
+                      startIcon={<CheckCircleIcon />}
+                      onClick={() => startDecision('validate')}
                     >
-                      <CheckCircle2 className="w-4 h-4 mr-1" />
                       Valider
                     </Button>
-                    <Button
-                      onClick={() => handleAction('correct')}
-                      variant="outline"
-                      className="flex-1"
-                    >
+                    <Button fullWidth variant="outlined" onClick={() => startDecision('correct')}>
                       Corriger
                     </Button>
                     <Button
-                      onClick={() => handleAction('reject')}
-                      variant="destructive"
-                      className="flex-1"
+                      fullWidth
+                      variant="contained"
+                      color="error"
+                      startIcon={<CloseIcon />}
+                      onClick={() => startDecision('reject')}
                     >
-                      <X className="w-4 h-4 mr-1" />
                       Rejeter
                     </Button>
-                  </div>
-                </div>
+                  </Stack>
+                  <Button
+                    size="small"
+                    color="inherit"
+                    onClick={() => void handleRelease()}
+                    loading={release.isPending}
+                  >
+                    Relâcher la demande
+                  </Button>
+                </Stack>
               )}
 
-              {action && (
-                <form onSubmit={handleSubmit} className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium text-foreground mb-2">
-                      {action === 'validate'
-                        ? 'Confirmer la validation'
-                        : action === 'correct'
-                          ? 'Correction requise'
-                          : 'Motif du rejet'}
-                    </p>
-                    <textarea
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder={
-                        action === 'validate'
-                          ? 'Commentaire optionnel...'
-                          : 'Commentaire obligatoire...'
-                      }
-                      rows={3}
-                      required={action !== 'validate'}
-                      className="w-full px-3 py-2 border border-input rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
+              {mine && decision && (
+                <Stack component="form" spacing={2} onSubmit={handleSubmit} noValidate>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {DECISION_TITLES[decision]}
+                  </Typography>
 
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setAction(null);
-                        setComment('');
+                  {diagnosisRequired && (
+                    <TextField
+                      label="Diagnostic retenu"
+                      placeholder="Conclusion médicale qui fait foi…"
+                      multiline
+                      rows={3}
+                      required
+                      error={errors.diagnosis === true}
+                      helperText={errors.diagnosis === true ? 'Le diagnostic est obligatoire.' : ' '}
+                      value={diagnosis}
+                      onChange={(e) => {
+                        setDiagnosis(e.target.value);
+                        if (errors.diagnosis === true) setErrors((p) => ({ ...p, diagnosis: false }));
                       }}
-                      className="flex-1"
-                    >
+                    />
+                  )}
+
+                  <TextField
+                    label="Commentaire"
+                    placeholder={
+                      commentRequired ? 'Commentaire obligatoire…' : 'Commentaire optionnel…'
+                    }
+                    multiline
+                    rows={3}
+                    required={commentRequired}
+                    error={errors.comment === true}
+                    helperText={
+                      errors.comment === true
+                        ? 'Un commentaire est obligatoire pour cette action.'
+                        : ' '
+                    }
+                    value={comment}
+                    onChange={(e) => {
+                      setComment(e.target.value);
+                      if (errors.comment === true) setErrors((p) => ({ ...p, comment: false }));
+                    }}
+                  />
+
+                  <Stack direction="row" spacing={1}>
+                    <Button fullWidth variant="outlined" onClick={resetDecision}>
                       Annuler
                     </Button>
                     <Button
+                      fullWidth
                       type="submit"
-                      className={`flex-1 ${
-                        action === 'validate'
-                          ? 'bg-green-600 hover:bg-green-700'
-                          : 'bg-primary hover:bg-primary/90'
-                      } text-white`}
+                      variant="contained"
+                      loading={review.isPending}
+                      color={
+                        decision === 'validate'
+                          ? 'success'
+                          : decision === 'reject'
+                            ? 'error'
+                            : 'primary'
+                      }
                     >
                       Confirmer
                     </Button>
-                  </div>
-                </form>
+                  </Stack>
+                </Stack>
               )}
-            </Card>
-          </div>
-        </div>
-      </div>
-    </DashboardLayout>
+            </Stack>
+          </SectionCard>
+        </Grid>
+      </Grid>
+    </Stack>
   );
 }

@@ -1,273 +1,390 @@
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Grid from '@mui/material/Grid';
+import IconButton from '@mui/material/IconButton';
+import MenuItem from '@mui/material/MenuItem';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/DeleteOutlined';
+import EditIcon from '@mui/icons-material/EditOutlined';
+import type { GridColDef } from '@mui/x-data-grid';
+import { useMemo, useState } from 'react';
+
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Eye } from 'lucide-react';
+import { DataTable } from '@/components/common/DataTable';
+import { PageHeader } from '@/components/common/PageHeader';
+import { QueryBoundary } from '@/components/common/QueryBoundary';
+import { SectionCard } from '@/components/common/SectionCard';
+import { StatCard } from '@/components/common/StatCard';
+import { StatusChip } from '@/components/common/StatusChip';
+import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from '@/api/hooks';
+import type { ManagedUser } from '@/api/types';
+import { ApiError } from '@/lib/apiClient';
+import { confirm, notify } from '@/lib/alerts';
+
+const ROLE_FILTERS = ['all', 'cardiologist', 'healthcare_professional', 'admin'] as const;
+type RoleFilter = (typeof ROLE_FILTERS)[number];
+
+const ROLE_FILTER_LABELS: Record<RoleFilter, string> = {
+  all: 'Tous',
+  cardiologist: 'Cardiologues',
+  healthcare_professional: 'Professionnels',
+  admin: 'Administrateurs',
+};
+
+const ROLE_OPTIONS = [
+  { value: 'healthcare_professional', label: 'Professionnel de santé' },
+  { value: 'cardiologist', label: 'Cardiologue' },
+  { value: 'admin', label: 'Administrateur' },
+];
+
+/** `PENDING_ACTIVATION` est exclu : il se quitte, il ne se choisit pas. */
+type EditableStatus = Exclude<ManagedUser['status'], 'PENDING_ACTIVATION'>;
+
+const STATUS_OPTIONS: { value: EditableStatus; label: string }[] = [
+  { value: 'ACTIVE', label: 'Actif' },
+  { value: 'INACTIVE', label: 'Inactif' },
+  { value: 'SUSPENDED', label: 'Suspendu' },
+];
 
 export default function AdminUsers() {
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: 'Dr. Martin Leclerc',
-      email: 'martin.leclerc@hospital.fr',
-      role: 'Cardiologue',
-      status: 'Actif',
-      joinDate: '2026-01-15',
-      lastLogin: '2026-07-26 14:32',
-    },
-    {
-      id: 2,
-      name: 'Dr. Sophie Dupont',
-      email: 'sophie.dupont@hospital.fr',
-      role: 'Professionnel de santé',
-      status: 'Actif',
-      joinDate: '2026-02-10',
-      lastLogin: '2026-07-26 13:15',
-    },
-    {
-      id: 3,
-      name: 'Dr. Pierre Bernard',
-      email: 'pierre.bernard@hospital.fr',
-      role: 'Cardiologue',
-      status: 'Inactif',
-      joinDate: '2026-01-20',
-      lastLogin: '2026-07-25 09:45',
-    },
-    {
-      id: 4,
-      name: 'Infirmier Jean Moreau',
-      email: 'jean.moreau@hospital.fr',
-      role: 'Professionnel de santé',
-      status: 'Actif',
-      joinDate: '2026-03-05',
-      lastLogin: '2026-07-26 14:20',
-    },
-    {
-      id: 5,
-      name: 'Dr. Claire Rousseau',
-      email: 'claire.rousseau@hospital.fr',
-      role: 'Cardiologue',
-      status: 'Actif',
-      joinDate: '2026-04-12',
-      lastLogin: '2026-07-26 10:00',
-    },
-    {
-      id: 6,
-      name: 'Ambulancier Marc Petit',
-      email: 'marc.petit@hospital.fr',
-      role: 'Professionnel de santé',
-      status: 'Suspendu',
-      joinDate: '2026-05-01',
-      lastLogin: '2026-07-20 08:30',
-    },
-  ]);
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<ManagedUser | null>(null);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
+  const query = useUsers();
+  const deleteUser = useDeleteUser();
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesRole =
-      roleFilter === 'all' || user.role === roleFilter;
-
-    return matchesSearch && matchesRole;
-  });
+  const users = useMemo(() => query.data ?? [], [query.data]);
+  const rows = useMemo(
+    () => (roleFilter === 'all' ? users : users.filter((u) => u.role === roleFilter)),
+    [users, roleFilter],
+  );
 
   const stats = {
     total: users.length,
-    active: users.filter((u) => u.status === 'Actif').length,
-    cardiologists: users.filter((u) => u.role === 'Cardiologue').length,
-    professionals: users.filter((u) => u.role === 'Professionnel de santé').length,
+    active: users.filter((u) => u.status === 'ACTIVE').length,
+    cardiologists: users.filter((u) => u.role === 'cardiologist').length,
+    professionals: users.filter((u) => u.role === 'healthcare_professional').length,
   };
 
-  const handleDelete = (id: number) => {
-    setUsers((prev) => prev.filter((user) => user.id !== id));
+  /** La suppression est irréversible : elle passe par une confirmation explicite. */
+  const handleDelete = async (user: ManagedUser): Promise<void> => {
+    const confirmed = await confirm({
+      title: 'Supprimer ce compte ?',
+      text: `${user.name} (${user.email}) perdra immédiatement l'accès à la plateforme. Cette action est irréversible.`,
+      confirmLabel: 'Supprimer le compte',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
+
+    try {
+      await deleteUser.mutateAsync(user.id);
+      notify.success('Compte supprimé', `${user.name} n'a plus accès à la plateforme.`);
+    } catch (error) {
+      notify.error(
+        'Suppression impossible',
+        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+      );
+    }
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, any> = {
-      'Actif': 'default',
-      'Inactif': 'outline',
-      'Suspendu': 'destructive',
-    };
-    return <Badge variant={variants[status] || 'outline'}>{status}</Badge>;
-  };
+  const columns: GridColDef<ManagedUser>[] = [
+    { field: 'name', headerName: 'Nom', flex: 1.2, minWidth: 180 },
+    { field: 'email', headerName: 'Email', flex: 1.4, minWidth: 220 },
+    {
+      field: 'roleLabel',
+      headerName: 'Rôle',
+      width: 180,
+      renderCell: ({ value }) => <Chip label={value as string} variant="outlined" />,
+    },
+    {
+      field: 'statusLabel',
+      headerName: 'Statut',
+      width: 160,
+      renderCell: ({ row }) => <StatusChip status={row.statusLabel} statusKey={row.status} />,
+    },
+    {
+      field: 'createdAt',
+      headerName: 'Inscription',
+      width: 120,
+      valueGetter: (value: string) => new Date(value),
+      valueFormatter: (value: Date) => value.toLocaleDateString('fr-FR'),
+    },
+    {
+      field: 'lastLoginAt',
+      headerName: 'Dernière connexion',
+      width: 180,
+      valueGetter: (value: string | null) => (value === null ? null : new Date(value)),
+      valueFormatter: (value: Date | null) =>
+        value === null ? 'Jamais' : value.toLocaleString('fr-FR'),
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 110,
+      sortable: false,
+      filterable: false,
+      renderCell: ({ row }) => (
+        <Stack direction="row" spacing={0.5}>
+          <Tooltip title="Modifier">
+            <IconButton size="small" onClick={() => setEditing(row)}>
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Supprimer">
+            <IconButton size="small" color="error" onClick={() => void handleDelete(row)}>
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      ),
+    },
+  ];
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Gestion des utilisateurs</h1>
-            <p className="text-muted-foreground mt-1">
-              Gérez les comptes et les rôles des utilisateurs
-            </p>
-          </div>
-          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2">
-            <Plus className="w-4 h-4" />
-            Nouvel utilisateur
-          </Button>
-        </div>
+      <Stack spacing={3}>
+        <PageHeader
+          title="Gestion des utilisateurs"
+          subtitle="Gérez les comptes et les rôles des utilisateurs"
+          action={
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
+              Nouvel utilisateur
+            </Button>
+          }
+        />
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-4 border border-border">
-            <p className="text-sm text-muted-foreground">Total</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{stats.total}</p>
-          </Card>
-          <Card className="p-4 border border-border">
-            <p className="text-sm text-muted-foreground">Actifs</p>
-            <p className="text-2xl font-bold text-green-600 mt-1">{stats.active}</p>
-          </Card>
-          <Card className="p-4 border border-border">
-            <p className="text-sm text-muted-foreground">Cardiologues</p>
-            <p className="text-2xl font-bold text-blue-600 mt-1">{stats.cardiologists}</p>
-          </Card>
-          <Card className="p-4 border border-border">
-            <p className="text-sm text-muted-foreground">Professionnels</p>
-            <p className="text-2xl font-bold text-purple-600 mt-1">{stats.professionals}</p>
-          </Card>
-        </div>
+        <QueryBoundary
+          isLoading={query.isLoading}
+          error={query.error}
+          onRetry={() => void query.refetch()}
+        >
+          <Stack spacing={3}>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+                <StatCard label="Total" value={stats.total} color="primary" />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+                <StatCard label="Actifs" value={stats.active} color="success" />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+                <StatCard label="Cardiologues" value={stats.cardiologists} color="info" />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
+                <StatCard label="Professionnels" value={stats.professionals} color="secondary" />
+              </Grid>
+            </Grid>
 
-        {/* Filters */}
-        <Card className="p-4 border border-border">
-          <div className="flex flex-col gap-4">
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Rechercher par nom ou email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-input rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </div>
+            <SectionCard
+              title="Utilisateurs"
+              action={
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                  {ROLE_FILTERS.map((key) => (
+                    <Chip
+                      key={key}
+                      label={ROLE_FILTER_LABELS[key]}
+                      color={roleFilter === key ? 'primary' : 'default'}
+                      variant={roleFilter === key ? 'filled' : 'outlined'}
+                      onClick={() => setRoleFilter(key)}
+                    />
+                  ))}
+                </Stack>
+              }
+              disableContentPadding
+            >
+              <DataTable<ManagedUser> rows={rows} columns={columns} height={520} />
+            </SectionCard>
+          </Stack>
+        </QueryBoundary>
+      </Stack>
 
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={() => setRoleFilter('all')}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                  roleFilter === 'all'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground hover:bg-muted/80'
-                }`}
-              >
-                Tous
-              </button>
-              <button
-                onClick={() => setRoleFilter('Cardiologue')}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                  roleFilter === 'Cardiologue'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground hover:bg-muted/80'
-                }`}
-              >
-                Cardiologues
-              </button>
-              <button
-                onClick={() => setRoleFilter('Professionnel de santé')}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                  roleFilter === 'Professionnel de santé'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground hover:bg-muted/80'
-                }`}
-              >
-                Professionnels
-              </button>
-            </div>
-          </div>
-        </Card>
-
-        {/* Users Table */}
-        <Card className="p-6 border border-border overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Nom
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Email
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Rôle
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Statut
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Inscription
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Dernière connexion
-                  </th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user) => (
-                  <tr
-                    key={user.id}
-                    className="border-b border-border hover:bg-muted/50 transition-colors"
-                  >
-                    <td className="py-3 px-4 font-medium text-foreground">
-                      {user.name}
-                    </td>
-                    <td className="py-3 px-4 text-foreground text-xs">
-                      {user.email}
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge variant="secondary">{user.role}</Badge>
-                    </td>
-                    <td className="py-3 px-4">{getStatusBadge(user.status)}</td>
-                    <td className="py-3 px-4 text-muted-foreground text-xs">
-                      {user.joinDate}
-                    </td>
-                    <td className="py-3 px-4 text-muted-foreground text-xs">
-                      {user.lastLogin}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-primary hover:bg-primary/10"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-blue-600 hover:bg-blue-50"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(user.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
+      <CreateUserDialog open={creating} onClose={() => setCreating(false)} />
+      {/* La clé remonte le formulaire à chaque changement de compte : l'état
+          initial se déduit alors des props, sans effet de synchronisation. */}
+      <EditUserDialog key={editing?.id ?? 'none'} user={editing} onClose={() => setEditing(null)} />
     </DashboardLayout>
+  );
+}
+
+function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const createUser = useCreateUser();
+  const [form, setForm] = useState({
+    email: '',
+    firstName: '',
+    lastName: '',
+    role: 'healthcare_professional',
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const user = await createUser.mutateAsync(form);
+      notify.success(
+        'Compte créé',
+        `${user.name} recevra un email pour définir son mot de passe.`,
+      );
+      setForm({ email: '', firstName: '', lastName: '', role: 'healthcare_professional' });
+      onClose();
+    } catch (error) {
+      notify.error(
+        'Création impossible',
+        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+      );
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <form onSubmit={handleSubmit} noValidate>
+        <DialogTitle>Nouvel utilisateur</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              Le compte est créé sans mot de passe : l'utilisateur reçoit un lien d'activation par
+              email.
+            </Typography>
+            <TextField
+              label="Prénom"
+              required
+              value={form.firstName}
+              onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+            />
+            <TextField
+              label="Nom"
+              required
+              value={form.lastName}
+              onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
+            />
+            <TextField
+              label="Adresse email"
+              type="email"
+              required
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            />
+            <TextField
+              label="Rôle"
+              select
+              required
+              value={form.role}
+              onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+            >
+              {ROLE_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={onClose}>Annuler</Button>
+          <Button type="submit" variant="contained" loading={createUser.isPending}>
+            Créer le compte
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
+  );
+}
+
+function EditUserDialog({ user, onClose }: { user: ManagedUser | null; onClose: () => void }) {
+  const updateUser = useUpdateUser();
+  const [form, setForm] = useState({
+    firstName: user?.firstName ?? '',
+    lastName: user?.lastName ?? '',
+    role: user?.role ?? 'healthcare_professional',
+    // Un compte encore en attente d'activation ne peut pas être « remis » dans
+    // cet état depuis l'interface : on propose la valeur qui a du sens.
+    status: user?.status === 'PENDING_ACTIVATION' ? 'ACTIVE' : (user?.status ?? 'ACTIVE'),
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    try {
+      await updateUser.mutateAsync({
+        id: user.id,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        role: form.role,
+        status: form.status as ManagedUser['status'],
+      });
+      notify.success('Compte modifié', `Les informations de ${user.name} sont à jour.`);
+      onClose();
+    } catch (error) {
+      notify.error(
+        'Modification impossible',
+        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+      );
+    }
+  };
+
+  return (
+    <Dialog open={user !== null} onClose={onClose} fullWidth maxWidth="sm">
+      <form onSubmit={handleSubmit} noValidate>
+        <DialogTitle>Modifier {user?.name}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Prénom"
+              required
+              value={form.firstName}
+              onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+            />
+            <TextField
+              label="Nom"
+              required
+              value={form.lastName}
+              onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
+            />
+            <TextField
+              label="Rôle"
+              select
+              required
+              value={form.role}
+              onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+            >
+              {ROLE_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Statut"
+              select
+              required
+              value={form.status}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, status: e.target.value as EditableStatus }))
+              }
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={onClose}>Annuler</Button>
+          <Button type="submit" variant="contained" loading={updateUser.isPending}>
+            Enregistrer
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 }

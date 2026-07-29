@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Télécardiologie">
+  <title>Télécardiologie</title>
+  <!--
+    Cœur stylisé traversé d'un tracé ECG : les deux signes du domaine réunis.
+    L'entaille du complexe QRS interrompt le contour du cœur, ce qui fait lire
+    le tracé comme une mesure du cœur plutôt que comme un décor posé dessus.
+  -->
+  <defs>
+    <linearGradient id="tc-heart" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d4393b" />
+      <stop offset="1" stop-color="#94151d" />
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="15" fill="url(#tc-heart)" />
+
+  <!-- Contour du cœur, ouvert à hauteur du tracé. -->
+  <path
+    d="M32 51.5C32 51.5 13.5 40.2 13.5 27.7C13.5 21.2 18.4 16.5 24.3 16.5C27.9 16.5 30.6 18.3 32 20.6C33.4 18.3 36.1 16.5 39.7 16.5C45.6 16.5 50.5 21.2 50.5 27.7C50.5 30.3 49.7 32.8 48.4 35.2"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="3.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity="0.95"
+  />
+
+  <!-- Tracé ECG : ligne isoélectrique, complexe QRS, retour. -->
+  <path
+    d="M11 35.2H22.6L26.2 27.4L31.2 43.4L35.4 31.6L38.2 35.2H53"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="3.4"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

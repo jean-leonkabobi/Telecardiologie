@@ -1,355 +1,390 @@
-import { DashboardLayout } from '@/components/DashboardLayout';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useLocation } from 'wouter';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Grid from '@mui/material/Grid';
+import MenuItem from '@mui/material/MenuItem';
+import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
+import Step from '@mui/material/Step';
+import StepLabel from '@mui/material/StepLabel';
+import Stepper from '@mui/material/Stepper';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlined';
+import UploadFileIcon from '@mui/icons-material/UploadFileOutlined';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { zodResolver } from '@hookform/resolvers/zod';
+import type { Dayjs } from 'dayjs';
 import { useState } from 'react';
-import { AlertCircle, Upload, CheckCircle2 } from 'lucide-react';
+import { Controller, useForm, type Path } from 'react-hook-form';
+import { useLocation } from 'wouter';
+import { z } from 'zod';
+
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { DetailItem } from '@/components/common/DetailItem';
+import { InfoPanel } from '@/components/common/InfoPanel';
+import { PageHeader } from '@/components/common/PageHeader';
+import { notify } from '@/lib/alerts';
+import { useSubmitEcgRequest } from '@/api/hooks';
+import { ApiError } from '@/lib/apiClient';
+
+const requestSchema = z.object({
+  patientId: z.string().min(1, "L'identifiant patient est requis"),
+  gender: z.enum(['M', 'F'], { message: 'Sélectionnez le sexe du patient' }),
+  firstName: z.string().min(1, 'Le prénom est requis'),
+  lastName: z.string().min(1, 'Le nom est requis'),
+  dateOfBirth: z
+    .custom<Dayjs>((v) => Boolean(v), 'La date de naissance est requise')
+    .refine((d) => d.isValid(), 'Date invalide')
+    .refine((d) => !d.isAfter(), 'La date ne peut pas être dans le futur'),
+  symptoms: z.string().min(1, 'Décrivez les symptômes observés'),
+  clinicalContext: z.string(),
+  medicalHistory: z.string(),
+  priority: z.enum(['normal', 'urgent']),
+  additionalComments: z.string(),
+});
+
+type RequestValues = z.infer<typeof requestSchema>;
+
+const STEPS = ['Patient', 'Informations cliniques', 'Fichier ECG', 'Récapitulatif'];
+
+/** Champs validés à chaque étape avant d'autoriser « Suivant ». */
+const STEP_FIELDS: Path<RequestValues>[][] = [
+  ['patientId', 'gender', 'firstName', 'lastName', 'dateOfBirth'],
+  ['symptoms', 'clinicalContext', 'medicalHistory', 'priority', 'additionalComments'],
+  [],
+  [],
+];
 
 export default function NewECGRequest() {
   const [, navigate] = useLocation();
-  const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
-    patientId: '',
-    firstName: '',
-    lastName: '',
-    dateOfBirth: '',
-    gender: '',
-    symptoms: '',
-    clinicalContext: '',
-    medicalHistory: '',
-    priority: 'normal',
-    additionalComments: '',
-    ecgFile: null as File | null,
+  const [activeStep, setActiveStep] = useState(0);
+  const [ecgFile, setEcgFile] = useState<File | null>(null);
+  const submitRequest = useSubmitEcgRequest();
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    trigger,
+    getValues,
+    formState: { errors },
+  } = useForm<RequestValues>({
+    resolver: zodResolver(requestSchema),
+    mode: 'onTouched',
+    defaultValues: {
+      patientId: '',
+      firstName: '',
+      lastName: '',
+      symptoms: '',
+      clinicalContext: '',
+      medicalHistory: '',
+      priority: 'normal',
+      additionalComments: '',
+    },
   });
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleNext = async () => {
+    const valid = await trigger(STEP_FIELDS[activeStep]);
+    if (valid) setActiveStep((s) => s + 1);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFormData((prev) => ({ ...prev, ecgFile: file }));
+  const onSubmit = async (values: RequestValues): Promise<void> => {
+    // Le fichier vit hors du formulaire : l'étape 3 ne le validait pas, on
+    // s'assure ici qu'il est bien présent avant d'envoyer.
+    if (!ecgFile) {
+      notify.error('Fichier manquant', "Sélectionnez le tracé ECG à l'étape 3.");
+      setActiveStep(2);
+      return;
+    }
+
+    try {
+      const request = await submitRequest.mutateAsync({
+        patientRef: values.patientId,
+        patientFirstName: values.firstName,
+        patientLastName: values.lastName,
+        patientBirthDate: values.dateOfBirth.format('YYYY-MM-DD'),
+        patientGender: values.gender,
+        symptoms: values.symptoms,
+        clinicalContext: values.clinicalContext,
+        medicalHistory: values.medicalHistory,
+        additionalComments: values.additionalComments,
+        priority: values.priority,
+        file: ecgFile,
+      });
+
+      notify.success(
+        `Demande ${request.reference} enregistrée`,
+        "L'analyse automatique démarre, vous serez prévenu dès qu'elle est terminée.",
+      );
+      // Redirection vers la référence réelle, plus vers un identifiant fictif.
+      navigate(`/request/${request.id}`);
+    } catch (error) {
+      const message =
+        error instanceof ApiError ? error.message : "L'envoi de la demande a échoué.";
+      notify.error('Envoi impossible', message);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (step < 4) {
-      setStep(step + 1);
-    } else {
-      navigate('/request/REQ-NEW');
-    }
-  };
-
-  const steps = [
-    { number: 1, label: 'Patient' },
-    { number: 2, label: 'Informations cliniques' },
-    { number: 3, label: 'Fichier ECG' },
-    { number: 4, label: 'Récapitulatif' },
-  ];
+  const values = getValues();
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Nouvelle demande d'analyse ECG
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Étape {step} sur {steps.length}
-          </p>
-        </div>
+      <Box sx={{ maxWidth: 760, mx: 'auto' }}>
+        <Stack spacing={3}>
+          <PageHeader
+            title="Nouvelle demande d'analyse ECG"
+            subtitle={`Étape ${activeStep + 1} sur ${STEPS.length}`}
+          />
 
-        {/* Progress Indicator */}
-        <div className="flex gap-2">
-          {steps.map((s) => (
-            <div
-              key={s.number}
-              className={`flex-1 h-2 rounded-full transition-colors ${
-                s.number <= step ? 'bg-primary' : 'bg-muted'
-              }`}
-            />
-          ))}
-        </div>
+          <Stepper activeStep={activeStep} alternativeLabel>
+            {STEPS.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
 
-        <Card className="p-8 border border-border">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Step 1: Patient Information */}
-            {step === 1 && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold text-foreground">
-                  Informations du patient
-                </h2>
+          <Card>
+            <CardContent sx={{ p: 4 }}>
+              <Stack
+                component="form"
+                spacing={3}
+                noValidate
+                onSubmit={handleSubmit(onSubmit)}
+              >
+                {activeStep === 0 && (
+                  <Stack spacing={2.5}>
+                    <Typography variant="h2">Informations du patient</Typography>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="patientId">Identifiant patient</Label>
-                    <Input
-                      id="patientId"
-                      name="patientId"
-                      placeholder="Ex: PAT-2026-001"
-                      value={formData.patientId}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Sexe</Label>
-                    <select
-                      id="gender"
-                      name="gender"
-                      value={formData.gender}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-input rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      <option value="">Sélectionner</option>
-                      <option value="M">Masculin</option>
-                      <option value="F">Féminin</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">Prénom</Label>
-                    <Input
-                      id="firstName"
-                      name="firstName"
-                      placeholder="Jean"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Nom</Label>
-                    <Input
-                      id="lastName"
-                      name="lastName"
-                      placeholder="Dupont"
-                      value={formData.lastName}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="dateOfBirth">Date de naissance</Label>
-                  <Input
-                    id="dateOfBirth"
-                    name="dateOfBirth"
-                    type="date"
-                    value={formData.dateOfBirth}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 2: Clinical Information */}
-            {step === 2 && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold text-foreground">
-                  Informations cliniques
-                </h2>
-
-                <div className="space-y-2">
-                  <Label htmlFor="symptoms">Symptômes</Label>
-                  <textarea
-                    id="symptoms"
-                    name="symptoms"
-                    placeholder="Décrivez les symptômes observés..."
-                    value={formData.symptoms}
-                    onChange={handleInputChange}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-input rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="clinicalContext">Contexte clinique</Label>
-                  <textarea
-                    id="clinicalContext"
-                    name="clinicalContext"
-                    placeholder="Contexte de la demande..."
-                    value={formData.clinicalContext}
-                    onChange={handleInputChange}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-input rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="medicalHistory">Antécédents</Label>
-                  <textarea
-                    id="medicalHistory"
-                    name="medicalHistory"
-                    placeholder="Antécédents médicaux pertinents..."
-                    value={formData.medicalHistory}
-                    onChange={handleInputChange}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-input rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="priority">Priorité</Label>
-                    <select
-                      id="priority"
-                      name="priority"
-                      value={formData.priority}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-input rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      <option value="normal">Normale</option>
-                      <option value="urgent">Urgente</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="additionalComments">Commentaires supplémentaires</Label>
-                  <textarea
-                    id="additionalComments"
-                    name="additionalComments"
-                    placeholder="Informations additionnelles..."
-                    value={formData.additionalComments}
-                    onChange={handleInputChange}
-                    rows={2}
-                    className="w-full px-3 py-2 border border-input rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 3: ECG File */}
-            {step === 3 && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold text-foreground">
-                  Fichier ECG
-                </h2>
-
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
-                  <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-sm font-medium text-foreground mb-1">
-                    Glissez-déposez votre fichier ECG ici
-                  </p>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    ou cliquez pour sélectionner
-                  </p>
-                  <input
-                    type="file"
-                    onChange={handleFileChange}
-                    accept=".ecg,.xml,.pdf"
-                    className="hidden"
-                    id="ecgFile"
-                  />
-                  <label htmlFor="ecgFile">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => document.getElementById('ecgFile')?.click()}
-                    >
-                      Sélectionner un fichier
-                    </Button>
-                  </label>
-                </div>
-
-                {formData.ecgFile && (
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                    <div>
-                      <p className="text-sm font-medium text-green-900">
-                        {formData.ecgFile.name}
-                      </p>
-                      <p className="text-xs text-green-700">
-                        {(formData.ecgFile.size / 1024).toFixed(2)} KB
-                      </p>
-                    </div>
-                  </div>
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          label="Identifiant patient"
+                          placeholder="Ex : PAT-2026-001"
+                          error={Boolean(errors.patientId)}
+                          helperText={errors.patientId?.message}
+                          {...register('patientId')}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Controller
+                          name="gender"
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              select
+                              label="Sexe"
+                              value={field.value ?? ''}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              error={Boolean(errors.gender)}
+                              helperText={errors.gender?.message}
+                            >
+                              <MenuItem value="M">Masculin</MenuItem>
+                              <MenuItem value="F">Féminin</MenuItem>
+                            </TextField>
+                          )}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          label="Prénom"
+                          placeholder="Awa"
+                          error={Boolean(errors.firstName)}
+                          helperText={errors.firstName?.message}
+                          {...register('firstName')}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          label="Nom"
+                          placeholder="Diop"
+                          error={Boolean(errors.lastName)}
+                          helperText={errors.lastName?.message}
+                          {...register('lastName')}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <Controller
+                          name="dateOfBirth"
+                          control={control}
+                          render={({ field }) => (
+                            <DatePicker
+                              label="Date de naissance"
+                              value={field.value ?? null}
+                              onChange={field.onChange}
+                              disableFuture
+                              slotProps={{
+                                textField: {
+                                  error: Boolean(errors.dateOfBirth),
+                                  helperText: errors.dateOfBirth?.message,
+                                  onBlur: field.onBlur,
+                                },
+                              }}
+                            />
+                          )}
+                        />
+                      </Grid>
+                    </Grid>
+                  </Stack>
                 )}
 
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex gap-3">
-                  <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-blue-900">
-                    Les formats acceptés seront confirmés avec le client. Formats provisoires: ECG, XML, PDF
-                  </p>
-                </div>
-              </div>
-            )}
+                {activeStep === 1 && (
+                  <Stack spacing={2.5}>
+                    <Typography variant="h2">Informations cliniques</Typography>
 
-            {/* Step 4: Summary */}
-            {step === 4 && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold text-foreground">
-                  Récapitulatif de la demande
-                </h2>
+                    <TextField
+                      label="Symptômes"
+                      placeholder="Décrivez les symptômes observés…"
+                      multiline
+                      rows={3}
+                      error={Boolean(errors.symptoms)}
+                      helperText={errors.symptoms?.message}
+                      {...register('symptoms')}
+                    />
 
-                <div className="space-y-3">
-                  <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-xs text-muted-foreground">Patient</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {formData.firstName} {formData.lastName}
-                    </p>
-                  </div>
+                    <TextField
+                      label="Contexte clinique"
+                      placeholder="Contexte de la demande…"
+                      multiline
+                      rows={3}
+                      {...register('clinicalContext')}
+                    />
 
-                  <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-xs text-muted-foreground">Symptômes</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {formData.symptoms || '-'}
-                    </p>
-                  </div>
+                    <TextField
+                      label="Antécédents"
+                      placeholder="Antécédents médicaux pertinents…"
+                      multiline
+                      rows={3}
+                      {...register('medicalHistory')}
+                    />
 
-                  <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-xs text-muted-foreground">Priorité</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {formData.priority === 'urgent' ? 'Urgente' : 'Normale'}
-                    </p>
-                  </div>
+                    <Controller
+                      name="priority"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField select label="Priorité" sx={{ maxWidth: 280 }} {...field}>
+                          <MenuItem value="normal">Normale</MenuItem>
+                          <MenuItem value="urgent">Urgente</MenuItem>
+                        </TextField>
+                      )}
+                    />
 
-                  <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-xs text-muted-foreground">Fichier ECG</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {formData.ecgFile?.name || 'Aucun fichier'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+                    <TextField
+                      label="Commentaires supplémentaires"
+                      placeholder="Informations additionnelles…"
+                      multiline
+                      rows={2}
+                      {...register('additionalComments')}
+                    />
+                  </Stack>
+                )}
 
-            {/* Navigation Buttons */}
-            <div className="flex gap-3 pt-6">
-              {step > 1 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setStep(step - 1)}
-                >
-                  Précédent
-                </Button>
-              )}
-              <Button
-                type="submit"
-                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                {step === 4 ? 'Envoyer la demande' : 'Suivant'}
-              </Button>
-            </div>
-          </form>
-        </Card>
-      </div>
+                {activeStep === 2 && (
+                  <Stack spacing={2.5}>
+                    <Typography variant="h2">Fichier ECG</Typography>
+
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 4,
+                        textAlign: 'center',
+                        borderStyle: 'dashed',
+                        borderWidth: 2,
+                        '&:hover': { borderColor: 'primary.main' },
+                      }}
+                    >
+                      <UploadFileIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        Sélectionnez votre fichier ECG
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 2 }}>
+                        Formats provisoires : ECG, XML, PDF
+                      </Typography>
+                      <Button variant="outlined" component="label">
+                        Sélectionner un fichier
+                        <input
+                          type="file"
+                          hidden
+                          accept=".ecg,.xml,.pdf"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null;
+                            setEcgFile(file);
+                            if (file) notify.success('Fichier sélectionné', file.name);
+                          }}
+                        />
+                      </Button>
+                    </Paper>
+
+                    {ecgFile && (
+                      <InfoPanel tone="success">
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {ecgFile.name}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {(ecgFile.size / 1024).toFixed(2)} Ko
+                        </Typography>
+                      </InfoPanel>
+                    )}
+
+                    <InfoPanel>Les formats acceptés seront confirmés avec le client.</InfoPanel>
+                  </Stack>
+                )}
+
+                {activeStep === 3 && (
+                  <Stack spacing={2.5}>
+                    <Typography variant="h2">Récapitulatif de la demande</Typography>
+
+                    <Stack spacing={1.5}>
+                      {[
+                        { label: 'Patient', value: `${values.firstName} ${values.lastName}` },
+                        { label: 'Identifiant', value: values.patientId },
+                        {
+                          label: 'Date de naissance',
+                          value: values.dateOfBirth?.isValid() ? values.dateOfBirth.format('DD/MM/YYYY') : '—',
+                        },
+                        { label: 'Sexe', value: values.gender === 'M' ? 'Masculin' : 'Féminin' },
+                        { label: 'Symptômes', value: values.symptoms || '—' },
+                        { label: 'Priorité', value: values.priority === 'urgent' ? 'Urgente' : 'Normale' },
+                        { label: 'Fichier ECG', value: ecgFile?.name ?? 'Aucun fichier' },
+                      ].map((row) => (
+                        <Paper key={row.label} variant="outlined" sx={{ p: 2, bgcolor: 'surfaceMuted' }}>
+                          <DetailItem label={row.label} value={row.value} />
+                        </Paper>
+                      ))}
+                    </Stack>
+                  </Stack>
+                )}
+
+                <Stack direction="row" spacing={2} sx={{ pt: 2 }}>
+                  {activeStep > 0 && (
+                    <Button variant="outlined" onClick={() => setActiveStep((s) => s - 1)}>
+                      Précédent
+                    </Button>
+                  )}
+                  {activeStep < STEPS.length - 1 ? (
+                    <Button fullWidth variant="contained" onClick={handleNext}>
+                      Suivant
+                    </Button>
+                  ) : (
+                    <Button
+                      fullWidth
+                      type="submit"
+                      variant="contained"
+                      loading={submitRequest.isPending}
+                      loadingPosition="start"
+                    >
+                      Envoyer la demande
+                    </Button>
+                  )}
+                </Stack>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Stack>
+      </Box>
     </DashboardLayout>
   );
 }

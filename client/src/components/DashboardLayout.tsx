@@ -1,143 +1,327 @@
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { LogOut, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import AppBar from '@mui/material/AppBar';
+import Avatar from '@mui/material/Avatar';
+import Badge from '@mui/material/Badge';
+import Box from '@mui/material/Box';
+import Container from '@mui/material/Container';
+import Divider from '@mui/material/Divider';
+import Drawer from '@mui/material/Drawer';
+import IconButton from '@mui/material/IconButton';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Stack from '@mui/material/Stack';
+import Toolbar from '@mui/material/Toolbar';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useColorScheme, useTheme } from '@mui/material/styles';
+
+import BarChartIcon from '@mui/icons-material/BarChart';
+import DarkModeIcon from '@mui/icons-material/DarkModeOutlined';
+import DashboardIcon from '@mui/icons-material/DashboardOutlined';
+import DescriptionIcon from '@mui/icons-material/DescriptionOutlined';
+import EventAvailableIcon from '@mui/icons-material/EventAvailableOutlined';
+import FactCheckIcon from '@mui/icons-material/FactCheckOutlined';
+import HistoryIcon from '@mui/icons-material/History';
+import LightModeIcon from '@mui/icons-material/LightModeOutlined';
+import LogoutIcon from '@mui/icons-material/Logout';
+import MenuIcon from '@mui/icons-material/Menu';
+import NotificationsIcon from '@mui/icons-material/NotificationsNoneOutlined';
+import PeopleIcon from '@mui/icons-material/PeopleOutlined';
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheckOutlined';
+import PostAddIcon from '@mui/icons-material/PostAddOutlined';
+
+import { useState, type ReactNode } from 'react';
 import { useLocation } from 'wouter';
+import { useAuth, type UserRole } from '@/contexts/AuthContext';
+import { useNotifications } from '@/api/hooks';
+import { Logo } from '@/components/common/Logo';
+
+const DRAWER_WIDTH = 248;
+const DRAWER_WIDTH_COLLAPSED = 72;
+
+interface NavItem {
+  label: string;
+  href: string;
+  icon: ReactNode;
+}
+
+const NAV_ITEMS: Record<UserRole, NavItem[]> = {
+  healthcare_professional: [
+    { label: 'Tableau de bord', href: '/dashboard', icon: <DashboardIcon /> },
+    { label: 'Nouvelle demande', href: '/new-request', icon: <PostAddIcon /> },
+    { label: 'Mes demandes', href: '/my-requests', icon: <DescriptionIcon /> },
+    { label: 'Notifications', href: '/notifications', icon: <NotificationsIcon /> },
+  ],
+  cardiologist: [
+    { label: 'Tableau de bord', href: '/dashboard', icon: <DashboardIcon /> },
+    { label: "File d'attente", href: '/queue', icon: <PlaylistAddCheckIcon /> },
+    { label: 'Disponibilité', href: '/availability', icon: <EventAvailableIcon /> },
+    { label: 'Historique', href: '/history', icon: <HistoryIcon /> },
+    { label: 'Notifications', href: '/notifications', icon: <NotificationsIcon /> },
+  ],
+  admin: [
+    { label: 'Tableau de bord', href: '/admin', icon: <DashboardIcon /> },
+    { label: 'Demandes', href: '/admin/requests', icon: <DescriptionIcon /> },
+    { label: 'Utilisateurs', href: '/admin/users', icon: <PeopleIcon /> },
+    { label: 'Statistiques', href: '/admin/statistics', icon: <BarChartIcon /> },
+    { label: 'Audit', href: '/admin/audit', icon: <FactCheckIcon /> },
+    { label: 'Notifications', href: '/notifications', icon: <NotificationsIcon /> },
+  ],
+};
+
+/**
+ * Cloche de notifications avec compteur de non-lues.
+ *
+ * Le compteur vient du même cache TanStack Query que la page Notifications :
+ * marquer une notification comme lue met la pastille à jour immédiatement,
+ * sans requête supplémentaire.
+ */
+function NotificationBell() {
+  const [, navigate] = useLocation();
+  const { data } = useNotifications();
+  const unread = data?.unreadCount ?? 0;
+
+  return (
+    <Tooltip title={unread > 0 ? `${unread} notification(s) non lue(s)` : 'Notifications'}>
+      <IconButton color="inherit" onClick={() => navigate('/notifications')}>
+        <Badge badgeContent={unread} color="error" max={99}>
+          <NotificationsIcon />
+        </Badge>
+      </IconButton>
+    </Tooltip>
+  );
+}
+
+/** Bascule clair/sombre. `mode` est indéfini au premier rendu côté client. */
+function ColorModeToggle() {
+  const { mode, systemMode, setMode } = useColorScheme();
+  const resolved = mode === 'system' ? systemMode : mode;
+
+  if (!mode) {
+    // Réserve la place pour éviter un saut de mise en page.
+    return <Box sx={{ width: 40, height: 40 }} />;
+  }
+
+  const isDark = resolved === 'dark';
+
+  return (
+    <Tooltip title={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}>
+      <IconButton onClick={() => setMode(isDark ? 'light' : 'dark')} color="inherit">
+        {isDark ? <LightModeIcon /> : <DarkModeIcon />}
+      </IconButton>
+    </Tooltip>
+  );
+}
 
 interface DashboardLayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, logout } = useAuth();
-  const [, navigate] = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [location, navigate] = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const [desktopOpen, setDesktopOpen] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
 
+  // Les pages publiques (connexion, 404 hors session) s'affichent sans coquille.
   if (!user) {
     return <>{children}</>;
   }
 
-  const navItems =
-    user.role === 'healthcare_professional'
-      ? [
-          { label: 'Tableau de bord', href: '/dashboard' },
-          { label: 'Nouvelles demandes', href: '/new-request' },
-          { label: 'Mes demandes', href: '/my-requests' },
-          { label: 'Notifications', href: '/notifications' },
-        ]
-      : user.role === 'cardiologist'
-        ? [
-            { label: 'Tableau de bord', href: '/dashboard' },
-            { label: 'File d\'attente', href: '/queue' },
-            { label: 'Disponibilité', href: '/availability' },
-            { label: 'Historique', href: '/history' },
-          ]
-        : [
-            { label: 'Tableau de bord', href: '/admin' },
-            { label: 'Utilisateurs', href: '/admin/users' },
-            { label: 'Statistiques', href: '/admin/statistics' },
-            { label: 'Audit', href: '/admin/audit' },
-          ];
+  const navItems = NAV_ITEMS[user.role];
+  const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+  const expanded = isMobile ? true : desktopOpen;
+  const drawerWidth = expanded ? DRAWER_WIDTH : DRAWER_WIDTH_COLLAPSED;
+
+  const handleLogout = async () => {
+    setUserMenuAnchor(null);
+    await logout();
+    navigate('/login');
+  };
+
+  const handleNavigate = (href: string) => {
+    navigate(href);
+    if (isMobile) setMobileOpen(false);
+  };
+
+  const drawerContent = (
+    <>
+      <Toolbar sx={{ px: 2 }}>
+        <Logo size={32} showWordmark={expanded} />
+      </Toolbar>
+      <Divider />
+
+      <List sx={{ flexGrow: 1, px: 1, py: 2 }}>
+        {navItems.map((item) => {
+          const selected = location === item.href;
+          return (
+            <ListItem key={item.href} disablePadding sx={{ display: 'block', mb: 0.5 }}>
+              <Tooltip title={expanded ? '' : item.label} placement="right">
+                <ListItemButton
+                  selected={selected}
+                  onClick={() => handleNavigate(item.href)}
+                  sx={{ minHeight: 44, justifyContent: expanded ? 'initial' : 'center', px: 2 }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 0,
+                      mr: expanded ? 2 : 'auto',
+                      justifyContent: 'center',
+                      color: selected ? 'primary.main' : 'inherit',
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  {expanded && (
+                    <ListItemText
+                      primary={item.label}
+                      slotProps={{ primary: { variant: 'body2', sx: { fontWeight: selected ? 600 : 400 } } }}
+                    />
+                  )}
+                </ListItemButton>
+              </Tooltip>
+            </ListItem>
+          );
+        })}
+      </List>
+
+      <Divider />
+      <Box sx={{ p: 2 }}>
+        {expanded ? (
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
+            <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: '0.875rem' }}>
+              {initials}
+            </Avatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
+                {user.name}
+              </Typography>
+              <Typography variant="caption" noWrap sx={{ color: 'text.secondary', display: 'block' }}>
+                {user.roleLabel}
+              </Typography>
+            </Box>
+          </Stack>
+        ) : (
+          <Avatar sx={{ width: 36, height: 36, mx: 'auto', bgcolor: 'primary.main', fontSize: '0.875rem' }}>
+            {initials}
+          </Avatar>
+        )}
+      </Box>
+    </>
+  );
 
   return (
-    <div className="flex h-screen bg-background">
-      <aside
-        className={`${
-          sidebarOpen ? 'w-64' : 'w-20'
-        } bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col`}
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+      <AppBar
+        position="fixed"
+        sx={{
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          ml: { md: `${drawerWidth}px` },
+          zIndex: (t) => t.zIndex.drawer + 1,
+        }}
       >
-        <div className="p-4 border-b border-sidebar-border flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img
-              src="/manus-storage/logo_c406f01f.png"
-              alt="Logo"
-              className="w-8 h-8"
-            />
-            {sidebarOpen && (
-              <span className="font-bold text-sm text-sidebar-foreground hidden sm:inline">
-                Télécardiologie
-              </span>
-            )}
-          </div>
-        </div>
-
-        <nav className="flex-1 p-4 space-y-2">
-          {navItems.map((item) => (
-            <button
-              key={item.href}
-              onClick={() => navigate(item.href)}
-              className="w-full text-left px-4 py-2 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-            >
-              {sidebarOpen ? item.label : item.label.charAt(0)}
-            </button>
-          ))}
-        </nav>
-
-        <div className="p-4 border-t border-sidebar-border space-y-3">
-          {sidebarOpen && (
-            <div className="text-xs">
-              <p className="font-medium text-sidebar-foreground truncate">
-                {user.name}
-              </p>
-              <p className="text-sidebar-foreground/60 truncate">
-                {user.role === 'healthcare_professional'
-                  ? 'Professionnel de santé'
-                  : user.role === 'cardiologist'
-                    ? 'Cardiologue'
-                    : 'Administrateur'}
-              </p>
-            </div>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleLogout}
-            className="w-full justify-start text-sidebar-foreground hover:text-sidebar-accent-foreground"
+        <Toolbar sx={{ gap: 2 }}>
+          <IconButton
+            edge="start"
+            color="inherit"
+            aria-label="Afficher ou masquer le menu"
+            onClick={() => (isMobile ? setMobileOpen((v) => !v) : setDesktopOpen((v) => !v))}
           >
-            <LogOut className="w-4 h-4" />
-            {sidebarOpen && <span className="ml-2">Déconnexion</span>}
-          </Button>
-        </div>
-      </aside>
+            <MenuIcon />
+          </IconButton>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-card border-b border-border h-16 flex items-center justify-between px-6">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-muted rounded-md transition-colors"
+          <Box sx={{ flexGrow: 1 }} />
+
+          <Typography variant="body2" sx={{ color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
+            {new Date().toLocaleDateString('fr-FR', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </Typography>
+
+          <NotificationBell />
+
+          <ColorModeToggle />
+
+          <Tooltip title="Compte">
+            <IconButton onClick={(e) => setUserMenuAnchor(e.currentTarget)} sx={{ p: 0.5 }}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.8125rem' }}>
+                {initials}
+              </Avatar>
+            </IconButton>
+          </Tooltip>
+          <Menu
+            anchorEl={userMenuAnchor}
+            open={Boolean(userMenuAnchor)}
+            onClose={() => setUserMenuAnchor(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
           >
-            {sidebarOpen ? (
-              <X className="w-5 h-5" />
-            ) : (
-              <Menu className="w-5 h-5" />
-            )}
-          </button>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
-              {new Date().toLocaleDateString('fr-FR', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </span>
-            <img
-              src={user.avatar}
-              alt={user.name}
-              className="w-8 h-8 rounded-full"
-            />
-          </div>
-        </header>
+            <MenuItem disabled sx={{ opacity: '1 !important' }}>
+              <Stack sx={{ py: 0.5 }}>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {user.name}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {user.email}
+                </Typography>
+              </Stack>
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={() => void handleLogout()}>
+              <ListItemIcon>
+                <LogoutIcon fontSize="small" />
+              </ListItemIcon>
+              Déconnexion
+            </MenuItem>
+          </Menu>
+        </Toolbar>
+      </AppBar>
 
-        <main className="flex-1 overflow-auto bg-background">
-          <div className="p-6">{children}</div>
-        </main>
-      </div>
-    </div>
+      <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
+        <Drawer
+          variant={isMobile ? 'temporary' : 'permanent'}
+          open={isMobile ? mobileOpen : true}
+          onClose={() => setMobileOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            display: { xs: isMobile ? 'block' : 'none', md: 'block' },
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
+              width: isMobile ? DRAWER_WIDTH : drawerWidth,
+              overflowX: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              transition: theme.transitions.create('width', {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }),
+            },
+          }}
+        >
+          {drawerContent}
+        </Drawer>
+      </Box>
+
+      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <Toolbar />
+        <Container maxWidth="xl" sx={{ py: 3, flexGrow: 1 }}>
+          {children}
+        </Container>
+      </Box>
+    </Box>
   );
 }
+
+export default DashboardLayout;
