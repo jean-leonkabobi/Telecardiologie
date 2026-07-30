@@ -17,7 +17,17 @@ ARG NGINX_IMAGE=nginxinc/nginx-unprivileged:1.27-alpine
 FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+
+# `--include=dev` est indispensable, pas une précaution.
+#
+# Si la plate-forme injecte `NODE_ENV=production` au moment de la construction,
+# npm n'installe que les dépendances de production — et `vite`, qui compile
+# l'application, est une dépendance de développement. La compilation
+# s'arrêterait sur `vite: not found`, exactement comme l'image de l'API s'est
+# arrêtée sur `nest: not found`.
+#
+# Vérifié : 135 paquets sans ce drapeau et pas de binaire `vite`, contre 208 avec.
+RUN npm ci --include=dev --no-audit --no-fund
 
 # --- 2. Compilation ----------------------------------------------------------
 FROM ${NODE_IMAGE} AS build
