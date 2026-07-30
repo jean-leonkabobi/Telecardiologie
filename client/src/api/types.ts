@@ -69,6 +69,13 @@ export interface EcgRequestSummary {
   externalReviewReason: string | null;
   externalReviewRequestedAt: string | null;
   patient: PatientSnapshot;
+  /**
+   * Sollicitation des cardiologues : nombre de tours et date du dernier.
+   *
+   * `rounds: 0` signifie qu'aucune annonce n'a encore eu lieu — l'analyse est
+   * peut-être en cours. Au-delà de 1, la demande a été réannoncée sans être prise.
+   */
+  solicitation: { lastAt: string | null; rounds: number };
   /** Motif codé de l'examen, et son libellé français. */
   indication: EcgIndicationValue;
   indicationApi: string;

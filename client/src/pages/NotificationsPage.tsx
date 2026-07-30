@@ -12,6 +12,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import ErrorIcon from '@mui/icons-material/ErrorOutlined';
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedInOutlined';
 import GroupAddIcon from '@mui/icons-material/GroupAddOutlined';
 import NotificationsIcon from '@mui/icons-material/NotificationsNoneOutlined';
 import WarningIcon from '@mui/icons-material/WarningAmberOutlined';
@@ -51,6 +52,12 @@ const TYPE_STYLE: Record<string, { icon: React.ReactNode; color: Tone }> = {
   REQUEST_CORRECTED: { icon: <EditNoteIcon />, color: 'info' },
   REQUEST_REJECTED: { icon: <ErrorIcon />, color: 'error' },
   EXTERNAL_REVIEW_REQUESTED: { icon: <GroupAddIcon />, color: 'primary' },
+  // Invitation à valider : le cas ordinaire, en information. La relance porte le
+  // même type — c'est le texte du message qui dit qu'il s'agit d'un rappel.
+  REVIEW_REQUESTED: { icon: <AssignmentTurnedInIcon />, color: 'info' },
+  // Personne n'a pris la demande : c'est un avertissement pour le demandeur, qui
+  // doit alors agir par un autre canal.
+  REVIEW_UNCLAIMED: { icon: <WarningIcon />, color: 'warning' },
 };
 
 const FALLBACK_STYLE = { icon: <NotificationsIcon />, color: 'primary' as Tone };

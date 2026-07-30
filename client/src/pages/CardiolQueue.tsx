@@ -7,6 +7,7 @@ import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActiveOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlined';
 import { useLocation } from 'wouter';
 
@@ -184,6 +185,20 @@ function QueueCard({ item, position, actionLabel, onAction, pending }: QueueCard
                   savoir qu'il sort de son périmètre habituel. */}
               {item.openToExternalReview && (
                 <Chip label="Expertise externe demandée" color="info" variant="outlined" />
+              )}
+              {/**
+                * Demande déjà réannoncée sans avoir été prise.
+                *
+                * L'information change la lecture de la file : un dossier proposé
+                * trois fois n'est pas une demande qui vient d'arriver, c'est une
+                * demande que les confrères ont laissée passer. Rien ne l'indiquait.
+                */}
+              {item.solicitation.rounds > 1 && (
+                <Chip
+                  icon={<NotificationsActiveIcon />}
+                  label={`Relancée ${item.solicitation.rounds - 1} fois`}
+                  color="warning"
+                />
               )}
             </Stack>
 
