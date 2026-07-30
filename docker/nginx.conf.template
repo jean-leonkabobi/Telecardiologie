@@ -3,6 +3,20 @@
 # Les `${...}` sont développés au démarrage du conteneur par `envsubst`, via le
 # point d'entrée de l'image nginx officielle. Deux réglages seulement :
 # `API_UPSTREAM` et `MAX_UPLOAD_SIZE`.
+#
+# **`API_UPSTREAM` est le seul réglage qui compte pour joindre l'API**, et c'est
+# une variable d'**exécution** du conteneur frontend. Deux formes selon le
+# déploiement :
+#
+#   API_UPSTREAM=http://backend:8000                  # conteneur voisin, même réseau
+#   API_UPSTREAM=https://backend.mon-domaine.com      # API publiée sur son domaine
+#
+# Les variables `VITE_*` ne jouent aucun rôle ici : `VITE_API_TARGET` ne sert qu'au
+# serveur de développement de Vite, et `VITE_API_BASE_URL` est délibérément vidée
+# à la compilation pour que le navigateur appelle `/api` en relatif — c'est ce
+# relais qui doit ensuite trouver l'API. Les renseigner sans corriger
+# `API_UPSTREAM` laisse nginx sur son défaut et produit un 502 accompagné de
+# « backend could not be resolved » dans son journal.
 
 server {
     listen 8080;
@@ -49,7 +63,24 @@ server {
         proxy_pass $upstream$request_uri;
 
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
+
+        # --- Nom d'hôte transmis à l'API -------------------------------------
+        #
+        # `$proxy_host` — le nom de la cible — et non `$host`, le nom demandé par
+        # le navigateur. La distinction est sans effet quand l'API est un conteneur
+        # voisin, mais décisive quand elle est publiée sur son propre domaine :
+        # derrière un mandataire (Coolify, Cloudflare), c'est l'en-tête `Host` qui
+        # désigne l'application à servir. Envoyer celui du frontend faisait
+        # chercher le frontend, pas l'API.
+        proxy_set_header Host $proxy_host;
+
+        # Nom de serveur transmis dans la poignée de main TLS.
+        #
+        # Indispensable dès que `API_UPSTREAM` est en `https://` : sans SNI, un
+        # mandataire mutualisé ne sait pas quel certificat présenter et la
+        # connexion échoue avant la première requête. Sans effet en `http://`.
+        proxy_ssl_server_name on;
+
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         # L'API déclare `app.set('trust proxy', 1)` : c'est ce qui lui permet de
@@ -59,6 +90,8 @@ server {
         #
         # Le flag `secure` du cookie, lui, dépend de `NODE_ENV`, pas du schéma.
         proxy_set_header X-Forwarded-Proto $scheme;
+        # Le nom vu par le navigateur, que l'API ne peut plus déduire de `Host`.
+        proxy_set_header X-Forwarded-Host $host;
         proxy_set_header Connection "";
 
         # Le dépôt d'un tracé peut atteindre la limite métier de 20 Mo. La valeur
@@ -72,6 +105,18 @@ server {
         proxy_connect_timeout 10s;
         proxy_send_timeout 120s;
         proxy_read_timeout 120s;
+    }
+
+    # --- Chemins cachés -------------------------------------------------------
+    #
+    # `/.env`, `/.git/config` et compagnie sont sondés en permanence par des
+    # robots — le journal en porte la trace. Aucun de ces fichiers n'existe dans
+    # l'image, mais le repli monopage leur répondait `200` avec `index.html` : un
+    # scanner l'interprète comme « le chemin existe » et insiste. Un 404 sec coupe
+    # court, et sépare le bruit du reste du journal.
+    location ~ /\. {
+        deny all;
+        return 404;
     }
 
     # --- Fichiers statiques --------------------------------------------------

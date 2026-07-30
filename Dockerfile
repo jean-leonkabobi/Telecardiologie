@@ -58,6 +58,18 @@ FROM ${NGINX_IMAGE} AS runtime
 
 # Image non privilégiée : nginx tourne sous l'utilisateur `nginx` et écoute sur
 # 8080, un port non réservé. Rien ici ne justifie root.
+#
+# **`API_UPSTREAM` doit être renseigné au déploiement.** Le défaut ci-dessous ne
+# vaut que pour un conteneur voisin nommé `backend` sur le même réseau — le cas
+# d'un `docker compose`. Sur une plate-forme où les deux applications sont
+# séparées, ce nom n'existe pas : nginx journalise
+# « backend could not be resolved » et le navigateur reçoit un 502. Il faut alors
+# le domaine public de l'API :
+#
+#     API_UPSTREAM=https://backend.mon-domaine.com
+#
+# Les variables `VITE_*` ne remplacent pas ce réglage : elles agissent à la
+# compilation ou sur le serveur de développement, pas sur ce relais.
 ENV API_UPSTREAM=http://backend:8000 \
     MAX_UPLOAD_SIZE=25m
 
