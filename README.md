@@ -43,8 +43,39 @@ transmis.
 npm run build   # produit dist/public
 ```
 
-Déposez le contenu de `dist/public` dans `telecardiologie-backend/public` : l'API
-le sert alors elle-même, sur une origine unique.
+### Déploiement Coolify
+
+```bash
+docker build -t telecardio-web .
+docker run --rm -p 8080:8080 \
+  -e API_UPSTREAM="http://telecardio-api:8000" \
+  telecardio-web
+```
+
+L'image sert les fichiers statiques **et relaie `/api` vers l'API**. Ce relais
+n'est pas une commodité : le cookie de rafraîchissement est posé en
+`SameSite=Strict`. Servir le frontend sur une origine et l'API sur une autre
+ferait que le navigateur ne l'enverrait jamais — la session tiendrait quinze
+minutes, le temps de vie de l'access token, puis la déconnexion surviendrait sans
+que rien n'indique pourquoi. **C'est le piège de déploiement principal de ce
+projet.**
+
+| Variable | Défaut | Rôle |
+| --- | --- | --- |
+| `API_UPSTREAM` | `http://backend:8000` | Adresse interne de l'API. Résolue à chaque requête, pas figée au démarrage : un redéploiement du backend change son adresse. |
+| `MAX_UPLOAD_SIZE` | `25m` | Limite du relais. La valeur par défaut de nginx est de 1 Mo — sans ce réglage, toute soumission un peu lourde serait refusée par le relais avant d'atteindre l'API et son message explicite. |
+
+`VITE_API_BASE_URL` est laissé **vide** à la compilation, ce qui produit des
+appels relatifs. Les variables `VITE_*` sont figées au build et non lues à
+l'exécution : une origine gravée dans l'image ne pourrait plus changer sans
+reconstruire.
+
+### Autre option : un seul service
+
+`main.ts` sert `telecardiologie-backend/public` s'il existe. Déposer `dist/public`
+là-dedans donne une origine unique par construction, sans nginx. Réserve : le
+service statique de Nest n'assure pas le repli de l'application monopage — un
+rechargement sur `/analyze/:id` renverrait un 404.
 
 ---
 
@@ -91,6 +122,13 @@ et la file du cardiologue toutes les 15 s — elle bouge sous l'effet des confr�
 | **Lancement de l'analyse** | automatique, visible depuis `RequestDetail` | Statut `ANALYZING` réel puis `PENDING_REVIEW`, ligne dans `ecg_analyses` |
 | | | *L'analyse est produite par GroqCloud à partir des mesures extraites du fichier ; quand elles manquent, l'écran affiche « Tracé non lu par l'analyseur » et les champs rythme/fréquence restent vides.* |
 | **Validation** | `CardiolQueue` → `ECGAnalysis` | Prise en charge exclusive, décision (`VALIDATED` / `CORRECTED` / `REJECTED`), diagnostic, commentaire, notification et audit |
+
+**Visualiseur de tracé.** `client/src/components/ecg/EcgWaveformViewer.tsx` rend
+le signal sur Canvas — 60 000 nœuds dans le DOM rendraient le défilement saccadé.
+Disposition 3×4 plus bande de rythme en dérivation II, grille 1 mm / 5 mm,
+vitesses 25 et 50 mm/s, gains 5, 10 et 20 mm/mV. Le sous-échantillonnage conserve
+le **minimum et le maximum** de chaque colonne de pixels : sans cela un pic R
+étroit disparaîtrait de l'écran.
 
 **Supervision côté administrateur.** L'écran `/admin/requests` débloque les deux
 situations que le balayage automatique ne résout pas dans les délais utiles :
@@ -148,9 +186,11 @@ suivi sans configuration supplémentaire.
   l'électrocardiographe a écrites dans le fichier ; face à une image ou un PDF
   scanné, il n'a que le dossier clinique. L'écran d'analyse l'annonce alors
   explicitement et laisse rythme et fréquence vides — voir le README du backend.
-- **Pas de rendu ECG réel.** Le tracé affiché est un SVG décoratif statique ; le
-  fichier d'origine reste téléchargeable via une URL signée. Un rendu de signal
-  (12 dérivations, grille 25 mm/s · 10 mm/mV, calipers) reste à construire.
+- **Le rendu du tracé dépend du format.** Les exports XML porteurs du signal
+  (HL7 aECG, formats constructeur) s'affichent en 12 dérivations sur grille
+  millimétrée, avec réglages de vitesse et de gain. Un PDF ou une image n'expose
+  pas d'échantillons : l'écran l'annonce et propose le téléchargement. SCP-ECG et
+  DICOM Waveform ne sont pas décodés.
 - **Resend en bac à sable.** Avec l'expéditeur `onboarding@resend.dev`, seuls
   les envois vers l'adresse propriétaire du compte aboutissent. Vérifiez un
   domaine dans Resend pour écrire à de vrais destinataires.

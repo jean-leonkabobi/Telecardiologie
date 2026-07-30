@@ -1,7 +1,7 @@
 import Swal, { type SweetAlertOptions } from 'sweetalert2';
 
 /**
- * Alertes et confirmations, sur SweetAlert2.
+ * Alertes et confirmations, sur SweetAlert2 — **toutes centrées à l'écran**.
  *
  * Tout passe par ce module plutôt que par `Swal` directement : la charte, les
  * libellés français et l'accessibilité sont définis une seule fois, et les
@@ -43,31 +43,71 @@ export interface ToastOptions {
   text?: string;
 }
 
-/** Notification discrète en coin d'écran, qui n'interrompt pas l'utilisateur. */
-function toast(icon: 'success' | 'error' | 'warning' | 'info', options: ToastOptions): void {
+/** Couleur de l'icône, alignée sur la sémantique du thème. */
+const ICON_COLOR_VAR: Record<'success' | 'error' | 'warning' | 'info', string> = {
+  success: '--mui-palette-success-main',
+  error: '--mui-palette-error-main',
+  warning: '--mui-palette-warning-main',
+  info: '--mui-palette-info-main',
+};
+
+/**
+ * Notification centrée, au milieu de l'écran.
+ *
+ * Choix assumé plutôt qu'une pastille en coin : dans un contexte de soins, une
+ * notification qui glisse discrètement peut passer inaperçue — un résultat
+ * validé ou un envoi refusé doivent être vus.
+ *
+ * Le comportement diffère selon la gravité, et ce n'est pas une incohérence :
+ *
+ * - **succès et information** se referment seuls après quelques secondes, avec
+ *   une barre de progression. Exiger un clic après chaque action réussie
+ *   ajouterait un geste à chaque étape du parcours ;
+ * - **erreur et avertissement** attendent un acquittement explicite. Une erreur
+ *   qui disparaît toute seule est une erreur que l'utilisateur n'a pas lue —
+ *   inacceptable quand elle signale un envoi perdu ou un tracé refusé.
+ */
+function centeredAlert(
+  icon: 'success' | 'error' | 'warning' | 'info',
+  options: ToastOptions,
+): void {
+  const mustAcknowledge = icon === 'error' || icon === 'warning';
+
   void Swal.fire({
     ...baseOptions(),
-    toast: true,
-    position: 'top-end',
+    position: 'center',
     icon,
+    iconColor: cssVar(ICON_COLOR_VAR[icon], '#b51e26'),
     title: options.title,
     text: options.text,
-    showConfirmButton: false,
-    timer: icon === 'error' ? 6000 : 4000,
-    timerProgressBar: true,
-    // Laisse le temps de lire quand le pointeur survole la notification.
-    didOpen: (el) => {
-      el.addEventListener('mouseenter', Swal.stopTimer);
-      el.addEventListener('mouseleave', Swal.resumeTimer);
-    },
+    showConfirmButton: mustAcknowledge,
+    confirmButtonText: 'Fermer',
+    focusConfirm: mustAcknowledge,
+    ...(mustAcknowledge
+      ? {}
+      : {
+          timer: 3200,
+          timerProgressBar: true,
+          // Le survol suspend le compte à rebours : laisse le temps de lire.
+          didOpen: (el) => {
+            el.addEventListener('mouseenter', Swal.stopTimer);
+            el.addEventListener('mouseleave', Swal.resumeTimer);
+          },
+        }),
   });
 }
 
+/**
+ * Point d'entrée unique des notifications.
+ *
+ * Les 44 appels du frontend passent par ici : changer la présentation — coin
+ * d'écran, centre, durée — se fait à cet endroit et nulle part ailleurs.
+ */
 export const notify = {
-  success: (title: string, text?: string) => toast('success', { title, text }),
-  error: (title: string, text?: string) => toast('error', { title, text }),
-  warning: (title: string, text?: string) => toast('warning', { title, text }),
-  info: (title: string, text?: string) => toast('info', { title, text }),
+  success: (title: string, text?: string) => centeredAlert('success', { title, text }),
+  error: (title: string, text?: string) => centeredAlert('error', { title, text }),
+  warning: (title: string, text?: string) => centeredAlert('warning', { title, text }),
+  info: (title: string, text?: string) => centeredAlert('info', { title, text }),
 };
 
 export interface ConfirmOptions {
@@ -127,6 +167,53 @@ export async function alertDialog(
     text,
     confirmButtonText: 'Fermer',
   });
+}
+
+export interface PromptOptions {
+  title: string;
+  text: string;
+  label: string;
+  placeholder?: string;
+  confirmLabel?: string;
+  /** Longueur minimale exigée. Le message de refus est produit ici. */
+  minLength?: number;
+}
+
+/**
+ * Demande une saisie libre, centrée à l'écran.
+ *
+ * Résout à la valeur saisie, ou `null` si l'utilisateur annule. La validation se
+ * fait dans la boîte elle-même — refermer puis rouvrir pour signaler un motif
+ * trop court ferait perdre ce qui a déjà été écrit.
+ */
+export async function promptText(options: PromptOptions): Promise<string | null> {
+  const minLength = options.minLength ?? 1;
+
+  const result = await Swal.fire({
+    ...baseOptions(),
+    position: 'center',
+    icon: 'question',
+    iconColor: cssVar('--mui-palette-primary-main', '#b51e26'),
+    title: options.title,
+    text: options.text,
+    input: 'textarea',
+    inputLabel: options.label,
+    inputPlaceholder: options.placeholder ?? '',
+    inputAttributes: { 'aria-label': options.label },
+    showCancelButton: true,
+    confirmButtonText: options.confirmLabel ?? 'Confirmer',
+    cancelButtonText: 'Annuler',
+    focusCancel: false,
+    inputValidator: (value) => {
+      const saisie = value?.trim() ?? '';
+      if (saisie.length < minLength) {
+        return `Précisez le motif (${minLength} caractères minimum).`;
+      }
+      return null;
+    },
+  });
+
+  return result.isConfirmed ? (result.value as string).trim() : null;
 }
 
 /** Indicateur d'attente pour une opération dont on ne connaît pas la durée. */

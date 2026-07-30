@@ -1,0 +1,20 @@
+# Ce qui ne doit pas entrer dans le contexte de construction.
+#
+# Attention particulière aux variables `VITE_*` : elles sont **inlinées dans le
+# JavaScript produit**. Un `.env` embarqué dans le contexte finirait donc publié
+# en clair dans les fichiers servis au navigateur.
+.env
+.env.*
+!.env.example
+
+node_modules
+dist
+
+.git
+.gitignore
+.vscode
+.idea
+*.log
+Dockerfile
+.dockerignore
+README.md

@@ -48,16 +48,20 @@ const neutral = {
  * deux rouges voisins deviendraient indiscernables.
  */
 /**
- * Hauteur des contrôles des écrans d'authentification.
+ * Hauteur des contrôles d'un formulaire de saisie.
  *
- * Champs et bouton partagent la même valeur : sur un formulaire de trois
+ * Champs et bouton partagent la même valeur : sur un formulaire de quelques
  * éléments empilés, une différence de hauteur se voit immédiatement. 56 px
  * correspondent par ailleurs à la cible tactile recommandée.
+ *
+ * S'applique aux écrans où l'utilisateur remplit champ par champ — connexion,
+ * réinitialisation, saisie d'un patient. Les écrans denses (tableaux, filtres)
+ * gardent le `size: 'small'` par défaut du thème.
  *
  * Défini ici plutôt que dans un module à part : le thème est déjà importé par
  * tous les écrans, ce qui évite une dépendance supplémentaire.
  */
-export const AUTH_CONTROL_HEIGHT = 56;
+export const FORM_CONTROL_HEIGHT = 56;
 
 export const chartPalette = {
   light: ['#b51e26', '#277c99', '#37844c', '#bb731b', '#6b4d8f', '#8a7060'],

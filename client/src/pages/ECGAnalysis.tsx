@@ -5,7 +5,6 @@ import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
-import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
@@ -13,6 +12,7 @@ import Typography from '@mui/material/Typography';
 import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import DownloadIcon from '@mui/icons-material/Download';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import { useState } from 'react';
 import { useLocation, useParams } from 'wouter';
 
@@ -26,14 +26,38 @@ import { StatusChip } from '@/components/common/StatusChip';
 import {
   useClaimEcgRequest,
   useEcgFileUrl,
+  useEcgReport,
   useEcgRequest,
+  useEcgWaveform,
   useReleaseEcgRequest,
   useReviewEcgRequest,
 } from '@/api/hooks';
-import type { EcgRequestFullDetail, ReviewAction } from '@/api/types';
+import type { EcgAnalysisResult, EcgRequestFullDetail, ReviewAction } from '@/api/types';
+import { EcgDocumentViewer } from '@/components/ecg/EcgDocumentViewer';
+import { EcgWaveformViewer } from '@/components/ecg/EcgWaveformViewer';
+import { describeRedFlag, hasCriticalFlag } from '@/api/redFlags';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiError } from '@/lib/apiClient';
+import { triggerDownload } from '@/lib/download';
 import { confirm, notify } from '@/lib/alerts';
+
+/**
+ * Rend les intervalles sous forme compacte, ou rien s'ils sont tous absents.
+ *
+ * Afficher « PR : — · QRS : — » sur un tracé non mesuré n'informerait pas, il
+ * encombrerait.
+ */
+function formatIntervals(intervals: EcgAnalysisResult['intervals']): string | null {
+  const parties = [
+    intervals.prMs !== null && `PR ${intervals.prMs} ms`,
+    intervals.qrsMs !== null && `QRS ${intervals.qrsMs} ms`,
+    intervals.qtMs !== null && `QT ${intervals.qtMs} ms`,
+    intervals.qtcMs !== null && `QTc ${intervals.qtcMs} ms`,
+    intervals.axisDegrees !== null && `axe ${intervals.axisDegrees}°`,
+  ].filter((p): p is string => typeof p === 'string');
+
+  return parties.length > 0 ? parties.join(' · ') : null;
+}
 
 const DECISION_TITLES: Record<ReviewAction, string> = {
   validate: 'Confirmer la validation',
@@ -79,6 +103,8 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
   const release = useReleaseEcgRequest();
   const review = useReviewEcgRequest();
   const fileUrl = useEcgFileUrl();
+  const report = useEcgReport();
+  const waveform = useEcgWaveform(request.id);
 
   const mine = request.assignedToId !== null && request.assignedToId === user?.id;
   const analysisRunning = request.status === 'PENDING_ANALYSIS' || request.status === 'ANALYZING';
@@ -166,10 +192,32 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
     }
   };
 
+  /**
+   * Télécharge le compte rendu PDF.
+   *
+   * Action principale : c'est le document lisible et versable au dossier. Le
+   * fichier d'origine reste accessible à côté, mais un XML brut n'a d'intérêt que
+   * pour un autre logiciel.
+   */
+  const handleReport = async () => {
+    try {
+      const { url, fileName } = await report.mutateAsync(request.id);
+      triggerDownload(url, fileName);
+      // L'objet URL est révoqué après le clic : sans cela le blob resterait en
+      // mémoire jusqu'au rechargement de la page.
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (error) {
+      notify.error(
+        'Compte rendu indisponible',
+        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+      );
+    }
+  };
+
   const handleDownload = async () => {
     try {
-      const { url } = await fileUrl.mutateAsync(request.id);
-      window.open(url, '_blank', 'noopener,noreferrer');
+      const { url, fileName } = await fileUrl.mutateAsync(request.id);
+      triggerDownload(url, fileName);
     } catch (error) {
       notify.error(
         'Téléchargement impossible',
@@ -200,6 +248,22 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
             <Button variant="contained" onClick={() => void handleClaim()} loading={claim.isPending}>
               Prendre en charge
             </Button>
+          </Stack>
+        </InfoPanel>
+      )}
+
+      {request.openToExternalReview && (
+        <InfoPanel tone="info" title="Sollicitation hors structure">
+          <Stack spacing={0.75} sx={{ mt: 1 }}>
+            <Typography variant="body2">
+              Cette demande a été ouverte à un avis extérieur à l'établissement d'origine
+              {request.externalReviewRequestedAt !== null &&
+                ` le ${new Date(request.externalReviewRequestedAt).toLocaleString('fr-FR')}`}
+              .
+            </Typography>
+            {request.externalReviewReason !== null && (
+              <DetailItem label="Motif invoqué" value={request.externalReviewReason} />
+            )}
           </Stack>
         </InfoPanel>
       )}
@@ -251,55 +315,59 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
         <Grid size={{ xs: 12, lg: 4 }}>
           <SectionCard title="Tracé ECG">
             <Stack spacing={2}>
-              {/*
-                Aperçu décoratif : ce tracé est statique, il ne reflète pas le
-                signal du patient. Un rendu ECG réel (12 dérivations, grille
-                25 mm/s · 10 mm/mV) reste à implémenter — le fichier original
-                est en revanche téléchargeable ci-dessous.
-              */}
-              <Paper
-                variant="outlined"
-                sx={{
-                  bgcolor: 'surfaceMuted',
-                  p: 3,
-                  minHeight: 300,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Stack spacing={1.5} sx={{ width: '100%', alignItems: 'center' }}>
-                  <Box
-                    component="svg"
-                    viewBox="0 0 300 100"
-                    preserveAspectRatio="none"
-                    sx={{ width: '100%', height: 128, color: 'primary.main', opacity: 0.35 }}
-                  >
-                    <polyline
-                      points="0,50 10,50 15,40 20,50 30,50 40,45 50,50 60,50 70,35 80,50 90,50 100,48 110,50 120,50 130,40 140,50 150,50 160,45 170,50 180,50 190,35 200,50 210,50 220,48 230,50 240,50 250,40 260,50 270,50 280,45 290,50 300,50"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    />
-                  </Box>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    Aperçu — le fichier réel est {request.file.name}
+              {waveform.isLoading && <LinearProgress />}
+
+              {/**
+                * Deux façons de voir le tracé, selon ce que porte le fichier.
+                *
+                * Un export XML donne les échantillons : le tracé est redessiné aux
+                * conventions de l'électrocardiographe, mesurable, avec vitesse et
+                * gain réglables. Un PDF ou une photo porte un dessin : c'est le
+                * document lui-même qu'il faut montrer.
+                *
+                * L'écran affichait auparavant un avertissement invitant à
+                * télécharger le fichier — ce qui obligeait le cardiologue à quitter
+                * l'écran d'analyse pour voir ce sur quoi il doit se prononcer.
+                */}
+              {waveform.data?.waveform ? (
+                <EcgWaveformViewer waveform={waveform.data.waveform} />
+              ) : (
+                <Stack spacing={1.5}>
+                  <EcgDocumentViewer requestId={request.id} file={request.file} />
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    Document d'origine. Les exports XML des électrocardiographes (HL7
+                    aECG, formats constructeur) sont redessinés ici en 12 dérivations,
+                    avec vitesse et gain réglables.
                   </Typography>
                 </Stack>
-              </Paper>
+              )}
 
               <Stack direction="row" spacing={1} sx={{ justifyContent: 'center' }}>
-                <Tooltip title="Télécharger le tracé original">
+                <Button
+                  variant="contained"
+                  startIcon={<PictureAsPdfIcon />}
+                  onClick={() => void handleReport()}
+                  loading={report.isPending}
+                >
+                  Compte rendu PDF
+                </Button>
+                <Tooltip title="Fichier d'origine, tel qu'il a été déposé">
                   <span>
-                    <IconButton onClick={() => void handleDownload()} disabled={fileUrl.isPending}>
-                      <DownloadIcon />
-                    </IconButton>
+                    <Button
+                      variant="outlined"
+                      startIcon={<DownloadIcon />}
+                      onClick={() => void handleDownload()}
+                      loading={fileUrl.isPending}
+                    >
+                      Fichier source
+                    </Button>
                   </span>
                 </Tooltip>
               </Stack>
 
               <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
-                {request.file.mimeType} · {(request.file.sizeBytes / 1024).toFixed(0)} Ko
+                {request.file.name} · {request.file.mimeType} ·{' '}
+                {(request.file.sizeBytes / 1024).toFixed(0)} Ko
               </Typography>
             </Stack>
           </SectionCard>
@@ -330,6 +398,40 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                       {request.analysisAttempts} tentative
                       {request.analysisAttempts > 1 ? 's' : ''}. Le tracé reste consultable : votre
                       lecture prime sur l'aide automatique.
+                    </Typography>
+                  </Stack>
+                </InfoPanel>
+              )}
+
+              {request.analysis && request.analysis.redFlags.length > 0 && (
+                <InfoPanel
+                  tone={hasCriticalFlag(request.analysis.redFlags) ? 'error' : 'warning'}
+                  title={
+                    hasCriticalFlag(request.analysis.redFlags)
+                      ? 'Signes d’alarme — demande passée en urgence'
+                      : 'Points de vigilance mesurés'
+                  }
+                >
+                  <Stack spacing={1.25} sx={{ mt: 1 }}>
+                    {request.analysis.redFlags.map((code) => {
+                      const flag = describeRedFlag(code);
+                      return (
+                        <Stack key={code} spacing={0.25}>
+                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                            <Chip
+                              label={flag.label}
+                              size="small"
+                              color={flag.severity === 'critical' ? 'error' : 'warning'}
+                            />
+                          </Stack>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            {flag.hint}
+                          </Typography>
+                        </Stack>
+                      );
+                    })}
+                    <Typography variant="caption">
+                      Détectés par des seuils cliniques, indépendamment du modèle de langage.
                     </Typography>
                   </Stack>
                 </InfoPanel>
@@ -369,6 +471,12 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                         )
                       }
                     />
+                    {formatIntervals(request.analysis.intervals) && (
+                      <DetailItem
+                        label="Intervalles"
+                        value={formatIntervals(request.analysis.intervals)}
+                      />
+                    )}
                     <DetailItem
                       label="Score de confiance"
                       value={request.analysis.confidenceLabel}

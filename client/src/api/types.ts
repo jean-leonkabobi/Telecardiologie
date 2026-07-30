@@ -40,6 +40,12 @@ export interface EcgRequestSummary {
   priority: EcgPriority;
   priorityApi: string;
   priorityLabel: string;
+  /** Structure du demandeur, figée à la soumission. */
+  organizationId: string | null;
+  /** Vrai quand la demande est ouverte aux cardiologues hors structure. */
+  openToExternalReview: boolean;
+  externalReviewReason: string | null;
+  externalReviewRequestedAt: string | null;
   patient: PatientSnapshot;
   symptoms: string;
   submittedById: string;
@@ -74,6 +80,21 @@ export interface EcgAnalysisResult {
   heartRateBpm: number | null;
   heartRateLabel: string;
   anomalies: string[];
+  /** Intervalles lus sur le tracé, en millisecondes. Nuls si non mesurés. */
+  intervals: {
+    prMs: number | null;
+    qrsMs: number | null;
+    qtMs: number | null;
+    qtcMs: number | null;
+    axisDegrees: number | null;
+  };
+  /**
+   * Codes des signes d'alarme, déduits par règles déterministes côté serveur.
+   *
+   * Le client choisit le libellé et la couleur : les codes sont stables, les
+   * formulations peuvent évoluer sans casser l'affichage.
+   */
+  redFlags: string[];
   confidence: number;
   confidenceLabel: string;
   interpretation: string;
@@ -81,6 +102,31 @@ export interface EcgAnalysisResult {
   /** Faux quand l'avis repose sur le seul dossier clinique. */
   measuredSignal: boolean;
   computedAt: string;
+}
+
+/**
+ * Signal ECG décodé, prêt pour le visualiseur.
+ *
+ * Jamais stocké en base : décodé à la demande depuis le fichier d'origine. Un
+ * tracé de dix secondes sur douze dérivations à 500 Hz représente 60 000
+ * échantillons — le dupliquer n'apporterait rien.
+ */
+export interface EcgWaveform {
+  samplingHz: number;
+  durationSeconds: number;
+  /** « HL7 aECG », « XML constructeur ». */
+  sourceFormat: string;
+  /** Mesurée sur les pics R du signal, pas lue dans un rapport. */
+  estimatedHeartRateBpm: number | null;
+  leads: { name: string; samples: number[] }[];
+}
+
+/** Réponse de `GET /ecg-requests/:id/waveform`. */
+export interface EcgWaveformResponse {
+  /** Nul quand le fichier ne porte pas de signal exploitable. */
+  waveform: EcgWaveform | null;
+  fileName: string;
+  mimeType: string;
 }
 
 export interface TimelineEvent {
@@ -179,12 +225,34 @@ export interface Statistics {
 
 export interface AuditEntry {
   id: string;
+  /** Rang dans la chaîne de scellement, attribué par la base. */
+  sequence: number;
   timestamp: string;
   user: string;
+  /** Instantané figé à l'écriture : survit à la suppression du compte. */
+  userEmail: string | null;
   action: string;
   resource: string;
   status: string;
   details: string;
+}
+
+/**
+ * Contrôle d'intégrité du journal.
+ *
+ * La base refuse déjà toute modification par déclencheur. Ce rapport couvre ce
+ * qu'un déclencheur ne peut pas empêcher — une intervention qui l'aurait
+ * désactivé : il rend l'altération détectable à défaut d'impossible.
+ */
+export interface AuditIntegrity {
+  checked: number;
+  intact: boolean;
+  brokenLinks: number;
+  firstBrokenSequence: number | null;
+  fromSequence: number | null;
+  toSequence: number | null;
+  /** Entrées antérieures au scellement, hors périmètre de la chaîne. */
+  unsealed: number;
 }
 
 export interface ManagedUser {

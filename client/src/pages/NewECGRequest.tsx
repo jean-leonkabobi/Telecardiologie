@@ -25,12 +25,20 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { DetailItem } from '@/components/common/DetailItem';
 import { InfoPanel } from '@/components/common/InfoPanel';
 import { PageHeader } from '@/components/common/PageHeader';
+import { tallFieldSx } from '@/components/common/formStyles';
+import {
+  checkEcgFile,
+  ECG_ACCEPT_ATTRIBUTE,
+  ECG_FORMATS_LABEL,
+  ECG_MAX_FILE_SIZE_MB,
+  formatFileSize,
+} from '@/api/ecgFormats';
 import { notify } from '@/lib/alerts';
 import { useSubmitEcgRequest } from '@/api/hooks';
 import { ApiError } from '@/lib/apiClient';
 
 const requestSchema = z.object({
-  patientId: z.string().min(1, "L'identifiant patient est requis"),
+  // Pas d'identifiant patient : le serveur le dérive de l'identité saisie.
   gender: z.enum(['M', 'F'], { message: 'Sélectionnez le sexe du patient' }),
   firstName: z.string().min(1, 'Le prénom est requis'),
   lastName: z.string().min(1, 'Le nom est requis'),
@@ -51,7 +59,7 @@ const STEPS = ['Patient', 'Informations cliniques', 'Fichier ECG', 'Récapitulat
 
 /** Champs validés à chaque étape avant d'autoriser « Suivant ». */
 const STEP_FIELDS: Path<RequestValues>[][] = [
-  ['patientId', 'gender', 'firstName', 'lastName', 'dateOfBirth'],
+  ['firstName', 'lastName', 'dateOfBirth', 'gender'],
   ['symptoms', 'clinicalContext', 'medicalHistory', 'priority', 'additionalComments'],
   [],
   [],
@@ -74,7 +82,6 @@ export default function NewECGRequest() {
     resolver: zodResolver(requestSchema),
     mode: 'onTouched',
     defaultValues: {
-      patientId: '',
       firstName: '',
       lastName: '',
       symptoms: '',
@@ -101,7 +108,7 @@ export default function NewECGRequest() {
 
     try {
       const request = await submitRequest.mutateAsync({
-        patientRef: values.patientId,
+        // `patientRef` n'est pas transmis : le serveur le dérive de l'identité.
         patientFirstName: values.firstName,
         patientLastName: values.lastName,
         patientBirthDate: values.dateOfBirth.format('YYYY-MM-DD'),
@@ -155,79 +162,102 @@ export default function NewECGRequest() {
                 onSubmit={handleSubmit(onSubmit)}
               >
                 {activeStep === 0 && (
-                  <Stack spacing={2.5}>
-                    <Typography variant="h2">Informations du patient</Typography>
+                  <Stack spacing={3}>
+                    <Box>
+                      <Typography variant="h2">Informations du patient</Typography>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                        L'identifiant patient est attribué automatiquement à
+                        l'enregistrement, à partir de l'identité saisie ci-dessous.
+                      </Typography>
+                    </Box>
 
-                    <Grid container spacing={2}>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          label="Identifiant patient"
-                          placeholder="Ex : PAT-2026-001"
-                          error={Boolean(errors.patientId)}
-                          helperText={errors.patientId?.message}
-                          {...register('patientId')}
-                        />
+                    {/*
+                      Ordre de lecture : l'identité d'abord (prénom, nom), la
+                      démographie ensuite (naissance, sexe). C'est l'ordre dans
+                      lequel un soignant lit une étiquette de dossier.
+                    */}
+                    <Stack spacing={1.5}>
+                      <Typography variant="overline" sx={{ color: 'text.secondary' }}>
+                        Identité
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                          <TextField
+                            label="Prénom"
+                            placeholder="Awa"
+                            size="medium"
+                            sx={tallFieldSx}
+                            error={Boolean(errors.firstName)}
+                            helperText={errors.firstName?.message ?? ' '}
+                            {...register('firstName')}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                          <TextField
+                            label="Nom"
+                            placeholder="Diop"
+                            size="medium"
+                            sx={tallFieldSx}
+                            error={Boolean(errors.lastName)}
+                            helperText={errors.lastName?.message ?? ' '}
+                            {...register('lastName')}
+                          />
+                        </Grid>
                       </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <Controller
-                          name="gender"
-                          control={control}
-                          render={({ field }) => (
-                            <TextField
-                              select
-                              label="Sexe"
-                              value={field.value ?? ''}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              error={Boolean(errors.gender)}
-                              helperText={errors.gender?.message}
-                            >
-                              <MenuItem value="M">Masculin</MenuItem>
-                              <MenuItem value="F">Féminin</MenuItem>
-                            </TextField>
-                          )}
-                        />
+                    </Stack>
+
+                    <Stack spacing={1.5}>
+                      <Typography variant="overline" sx={{ color: 'text.secondary' }}>
+                        Naissance et sexe
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                          <Controller
+                            name="dateOfBirth"
+                            control={control}
+                            render={({ field }) => (
+                              <DatePicker
+                                label="Date de naissance"
+                                value={field.value ?? null}
+                                onChange={field.onChange}
+                                disableFuture
+                                slotProps={{
+                                  textField: {
+                                    size: 'medium',
+                                    sx: tallFieldSx,
+                                    error: Boolean(errors.dateOfBirth),
+                                    helperText: errors.dateOfBirth?.message ?? ' ',
+                                    onBlur: field.onBlur,
+                                  },
+                                }}
+                              />
+                            )}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                          <Controller
+                            name="gender"
+                            control={control}
+                            render={({ field }) => (
+                              <TextField
+                                select
+                                label="Sexe"
+                                size="medium"
+                                sx={tallFieldSx}
+                                value={field.value ?? ''}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                error={Boolean(errors.gender)}
+                                helperText={errors.gender?.message ?? ' '}
+                              >
+                                <MenuItem value="M">Masculin</MenuItem>
+                                <MenuItem value="F">Féminin</MenuItem>
+                              </TextField>
+                            )}
+                          />
+                        </Grid>
                       </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          label="Prénom"
-                          placeholder="Awa"
-                          error={Boolean(errors.firstName)}
-                          helperText={errors.firstName?.message}
-                          {...register('firstName')}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          label="Nom"
-                          placeholder="Diop"
-                          error={Boolean(errors.lastName)}
-                          helperText={errors.lastName?.message}
-                          {...register('lastName')}
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <Controller
-                          name="dateOfBirth"
-                          control={control}
-                          render={({ field }) => (
-                            <DatePicker
-                              label="Date de naissance"
-                              value={field.value ?? null}
-                              onChange={field.onChange}
-                              disableFuture
-                              slotProps={{
-                                textField: {
-                                  error: Boolean(errors.dateOfBirth),
-                                  helperText: errors.dateOfBirth?.message,
-                                  onBlur: field.onBlur,
-                                },
-                              }}
-                            />
-                          )}
-                        />
-                      </Grid>
-                    </Grid>
+                    </Stack>
                   </Stack>
                 )}
 
@@ -265,7 +295,15 @@ export default function NewECGRequest() {
                       name="priority"
                       control={control}
                       render={({ field }) => (
-                        <TextField select label="Priorité" sx={{ maxWidth: 280 }} {...field}>
+                        // Seul contrôle monoligne de cette étape : même hauteur
+                        // que ceux de l'étape Patient, sinon il paraît rétréci.
+                        <TextField
+                          select
+                          label="Priorité"
+                          size="medium"
+                          sx={[tallFieldSx, { maxWidth: 280 }]}
+                          {...field}
+                        >
                           <MenuItem value="normal">Normale</MenuItem>
                           <MenuItem value="urgent">Urgente</MenuItem>
                         </TextField>
@@ -301,18 +339,31 @@ export default function NewECGRequest() {
                         Sélectionnez votre fichier ECG
                       </Typography>
                       <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 2 }}>
-                        Formats provisoires : ECG, XML, PDF
+                        {ECG_FORMATS_LABEL} · {ECG_MAX_FILE_SIZE_MB} Mo maximum
                       </Typography>
                       <Button variant="outlined" component="label">
                         Sélectionner un fichier
                         <input
                           type="file"
                           hidden
-                          accept=".ecg,.xml,.pdf"
+                          accept={ECG_ACCEPT_ATTRIBUTE}
                           onChange={(e) => {
                             const file = e.target.files?.[0] ?? null;
+                            // Le champ est réinitialisé pour que resélectionner le
+                            // même fichier après un refus déclenche bien `change`.
+                            e.target.value = '';
+
+                            if (!file) return;
+
+                            const probleme = checkEcgFile(file);
+                            if (probleme) {
+                              setEcgFile(null);
+                              notify.error('Fichier refusé', probleme);
+                              return;
+                            }
+
                             setEcgFile(file);
-                            if (file) notify.success('Fichier sélectionné', file.name);
+                            notify.success('Fichier sélectionné', file.name);
                           }}
                         />
                       </Button>
@@ -324,12 +375,16 @@ export default function NewECGRequest() {
                           {ecgFile.name}
                         </Typography>
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {(ecgFile.size / 1024).toFixed(2)} Ko
+                          {formatFileSize(ecgFile.size)}
                         </Typography>
                       </InfoPanel>
                     )}
 
-                    <InfoPanel>Les formats acceptés seront confirmés avec le client.</InfoPanel>
+                    <InfoPanel>
+                      Un tracé scanné en image est accepté : le cardiologue le lira. En
+                      revanche l'analyse automatique n'en tirera aucune mesure — elle a
+                      besoin d'un export contenant du texte, PDF ou XML.
+                    </InfoPanel>
                   </Stack>
                 )}
 
@@ -340,7 +395,10 @@ export default function NewECGRequest() {
                     <Stack spacing={1.5}>
                       {[
                         { label: 'Patient', value: `${values.firstName} ${values.lastName}` },
-                        { label: 'Identifiant', value: values.patientId },
+                        {
+                          label: 'Identifiant patient',
+                          value: 'Attribué automatiquement à l’enregistrement',
+                        },
                         {
                           label: 'Date de naissance',
                           value: values.dateOfBirth?.isValid() ? values.dateOfBirth.format('DD/MM/YYYY') : '—',
@@ -348,7 +406,12 @@ export default function NewECGRequest() {
                         { label: 'Sexe', value: values.gender === 'M' ? 'Masculin' : 'Féminin' },
                         { label: 'Symptômes', value: values.symptoms || '—' },
                         { label: 'Priorité', value: values.priority === 'urgent' ? 'Urgente' : 'Normale' },
-                        { label: 'Fichier ECG', value: ecgFile?.name ?? 'Aucun fichier' },
+                        {
+                          label: 'Fichier ECG',
+                          value: ecgFile
+                            ? `${ecgFile.name} · ${formatFileSize(ecgFile.size)}`
+                            : 'Aucun fichier',
+                        },
                       ].map((row) => (
                         <Paper key={row.label} variant="outlined" sx={{ p: 2, bgcolor: 'surfaceMuted' }}>
                           <DetailItem label={row.label} value={row.value} />

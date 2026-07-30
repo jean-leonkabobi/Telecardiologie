@@ -130,6 +130,35 @@ interface RequestOptions {
   formData?: FormData;
   /** Empêche la tentative de rafraîchissement (utilisé par /auth/refresh lui-même). */
   skipRefresh?: boolean;
+  /** Lit le corps comme un blob au lieu de le décoder en JSON. */
+  binary?: boolean;
+}
+
+/** Réponse binaire : le corps est le document, pas une enveloppe JSON. */
+export interface BinaryResponse {
+  body: Blob;
+  fileName: string;
+}
+
+/**
+ * Nom de fichier tiré de l'en-tête `Content-Disposition`.
+ *
+ * La forme `filename*` en UTF-8 primait la forme ASCII quand les deux sont
+ * présentes — c'est ce que le serveur envoie pour les noms accentués.
+ */
+function fileNameFromDisposition(header: string | null, defaut: string): string {
+  if (!header) return defaut;
+
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utf8?.[1]) {
+    try {
+      return decodeURIComponent(utf8[1].trim());
+    } catch {
+      // En-tête mal formé : on retombe sur la forme ASCII plutôt que d'échouer.
+    }
+  }
+
+  return /filename="?([^\";]+)"?/i.exec(header)?.[1]?.trim() ?? defaut;
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -190,6 +219,16 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     return undefined as T;
   }
 
+  if (options.binary) {
+    return {
+      body: await response.blob(),
+      fileName: fileNameFromDisposition(
+        response.headers.get('Content-Disposition'),
+        'document.pdf',
+      ),
+    } as T;
+  }
+
   return (await response.json()) as T;
 }
 
@@ -202,4 +241,12 @@ export const api = {
   /** Envoi de fichier. Le rafraîchissement de jeton s'applique aussi ici. */
   upload: <T>(path: string, formData: FormData) =>
     request<T>(path, { method: 'POST', formData }),
+  /**
+   * Téléchargement d'un document généré par l'API.
+   *
+   * Passe par la même mécanique que les autres appels — jeton porté, 401
+   * rejoué après rafraîchissement — ce qu'un `window.open` sur l'URL ne
+   * permettrait pas : le navigateur n'y joindrait aucun en-tête d'autorisation.
+   */
+  download: (path: string) => request<BinaryResponse>(path, { binary: true }),
 };

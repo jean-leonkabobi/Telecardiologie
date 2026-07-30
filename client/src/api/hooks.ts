@@ -3,10 +3,12 @@ import { api } from '@/lib/apiClient';
 import type {
   AppNotification,
   AuditEntry,
+  AuditIntegrity,
   Availability,
   EcgRequestDetail,
   EcgRequestFullDetail,
   EcgRequestSummary,
+  EcgWaveformResponse,
   ManagedUser,
   QueueItem,
   ReviewAction,
@@ -25,6 +27,8 @@ export const queryKeys = {
   ecgRequestList: (status?: string, limit?: number) =>
     ['ecg-requests', 'list', status ?? 'all', limit ?? 'illimite'] as const,
   ecgRequest: (id: string) => ['ecg-requests', 'detail', id] as const,
+  ecgWaveform: (id: string) => ['ecg-requests', 'waveform', id] as const,
+  ecgDocument: (id: string) => ['ecg-requests', 'document', id] as const,
   queue: ['ecg-requests', 'queue'] as const,
   history: ['ecg-requests', 'history'] as const,
   notifications: ['notifications'] as const,
@@ -32,6 +36,7 @@ export const queryKeys = {
   statistics: ['statistics'] as const,
   users: ['users'] as const,
   audit: ['audit'] as const,
+  auditIntegrity: ['audit', 'integrity'] as const,
 };
 
 // --- Demandes ECG ------------------------------------------------------------
@@ -72,6 +77,22 @@ export function useEcgRequest(id: string | undefined) {
   });
 }
 
+/**
+ * Signal décodé du tracé.
+ *
+ * Requête distincte du détail : la charge est bien plus lourde (dizaines de
+ * milliers d'échantillons) et le résultat ne change jamais — le fichier d'origine
+ * est immuable. D'où un cache sans péremption.
+ */
+export function useEcgWaveform(id: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.ecgWaveform(id ?? ''),
+    queryFn: () => api.get<EcgWaveformResponse>(`/ecg-requests/${id}/waveform`),
+    enabled: Boolean(id),
+    staleTime: Infinity,
+  });
+}
+
 export function useReviewQueue() {
   return useQuery({
     queryKey: queryKeys.queue,
@@ -90,7 +111,14 @@ export function useCardiologistHistory() {
 }
 
 export interface SubmitEcgRequestPayload {
-  patientRef: string;
+  /**
+   * Facultatif : le serveur dérive l'identifiant de l'identité du patient.
+   *
+   * Le formulaire ne le demande plus. Le champ reste dans le contrat pour qu'une
+   * intégration avec un dossier patient existant puisse transmettre son IPP, qui
+   * fait alors foi.
+   */
+  patientRef?: string;
   patientFirstName: string;
   patientLastName: string;
   /** Format ISO `YYYY-MM-DD`. */
@@ -190,6 +218,77 @@ export function useRetryEcgAnalysis() {
   });
 }
 
+export interface RequestExternalReviewPayload {
+  id: string;
+  /** Obligatoire : une ouverture hors structure doit se justifier. */
+  reason: string;
+}
+
+/**
+ * Ouvre une demande aux cardiologues hors de la structure.
+ *
+ * Irréversible côté serveur : on ne peut pas désapprendre ce qui a été lu.
+ */
+export function useRequestExternalReview() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, reason }: RequestExternalReviewPayload) =>
+      api
+        .post<{ request: EcgRequestDetail }>(`/ecg-requests/${id}/request-external-review`, {
+          reason,
+        })
+        .then((r) => r.request),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.ecgRequests });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
+    },
+  });
+}
+
+/**
+ * Compte rendu PDF de l'examen.
+ *
+ * Passe par `fetch` et non par `apiClient` : la réponse est binaire, pas du JSON.
+ * L'objet URL local est révoqué par l'appelant après le déclenchement du
+ * téléchargement, sinon le blob resterait en mémoire jusqu'au rechargement.
+ */
+export function useEcgReport() {
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const blob = await api.download(`/ecg-requests/${id}/report`);
+      return { url: URL.createObjectURL(blob.body), fileName: blob.fileName };
+    },
+  });
+}
+
+/**
+ * Document d'origine, relayé par l'API pour être affiché dans l'application.
+ *
+ * Le corps traverse l'API au lieu d'être chargé depuis une URL signée : le
+ * document arrive ainsi sur notre propre origine, ce qui évite de dépendre des
+ * en-têtes du stockage et de laisser une signature valide dans le DOM.
+ *
+ * `enabled` diffère la requête : un tracé peut peser plusieurs mégaoctets, on ne
+ * le télécharge que lorsque le soignant demande à le voir.
+ *
+ * Le blob est renvoyé tel quel, sans objet URL. Une URL créée ici serait mise en
+ * cache par react-query et ne pourrait plus être révoquée au bon moment — c'est
+ * au composant qui l'affiche de la créer et de la libérer.
+ */
+export function useEcgDocument(id: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.ecgDocument(id ?? ''),
+    queryFn: () => api.download(`/ecg-requests/${id}/file/content`),
+    enabled: Boolean(id) && enabled,
+    // Le fichier d'origine est immuable : rien ne justifie de le retélécharger.
+    staleTime: Infinity,
+    // Mais on ne garde pas des mégaoctets en mémoire indéfiniment après la
+    // fermeture de l'écran.
+    gcTime: 5 * 60_000,
+  });
+}
+
 /** URL temporaire du tracé. Non mise en cache : elle expire. */
 export function useEcgFileUrl() {
   return useMutation({
@@ -263,6 +362,14 @@ export function useAuditLog() {
   return useQuery({
     queryKey: queryKeys.audit,
     queryFn: () => api.get<{ entries: AuditEntry[] }>('/audit').then((r) => r.entries),
+  });
+}
+
+/** Vérifie la chaîne de scellement du journal d'audit. */
+export function useAuditIntegrity() {
+  return useQuery({
+    queryKey: queryKeys.auditIntegrity,
+    queryFn: () => api.get<AuditIntegrity>('/audit/integrity'),
   });
 }
 

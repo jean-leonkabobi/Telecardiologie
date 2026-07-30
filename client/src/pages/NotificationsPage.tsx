@@ -12,6 +12,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import ErrorIcon from '@mui/icons-material/ErrorOutlined';
+import GroupAddIcon from '@mui/icons-material/GroupAddOutlined';
 import NotificationsIcon from '@mui/icons-material/NotificationsNoneOutlined';
 import WarningIcon from '@mui/icons-material/WarningAmberOutlined';
 import { useLocation } from 'wouter';
@@ -49,6 +50,7 @@ const TYPE_STYLE: Record<string, { icon: React.ReactNode; color: Tone }> = {
   REQUEST_VALIDATED: { icon: <CheckCircleIcon />, color: 'success' },
   REQUEST_CORRECTED: { icon: <EditNoteIcon />, color: 'info' },
   REQUEST_REJECTED: { icon: <ErrorIcon />, color: 'error' },
+  EXTERNAL_REVIEW_REQUESTED: { icon: <GroupAddIcon />, color: 'primary' },
 };
 
 const FALLBACK_STYLE = { icon: <NotificationsIcon />, color: 'primary' as Tone };

@@ -1,0 +1,102 @@
+# Gabarit nginx du frontend.
+#
+# Les `${...}` sont développés au démarrage du conteneur par `envsubst`, via le
+# point d'entrée de l'image nginx officielle. Deux réglages seulement :
+# `API_UPSTREAM` et `MAX_UPLOAD_SIZE`.
+
+server {
+    listen 8080;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Le nom de l'API est résolu à chaque requête et non une fois au démarrage.
+    # Sans cela, un redéploiement du backend changerait son adresse IP et nginx
+    # continuerait d'appeler l'ancienne jusqu'à son propre redémarrage.
+    resolver 127.0.0.11 valid=10s ipv6=off;
+
+    # --- Compression ---------------------------------------------------------
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types
+        application/javascript
+        application/json
+        image/svg+xml
+        text/css
+        text/plain;
+
+    # --- En-têtes de sécurité ------------------------------------------------
+    #
+    # Pas de `Content-Security-Policy` ici : SweetAlert2 et Emotion injectent des
+    # styles en ligne, une politique stricte casserait l'interface. Elle mérite
+    # d'être posée, mais après avoir relevé les directives réellement
+    # nécessaires — une CSP écrite au hasard finit désactivée.
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # --- Relais vers l'API ---------------------------------------------------
+    location /api/ {
+        # Variable et non littéral : c'est ce qui force nginx à utiliser le
+        # `resolver` ci-dessus au lieu de figer l'adresse au démarrage.
+        #
+        # `$request_uri` est repris explicitement : dès que la cible est une
+        # variable, nginx cesse de recomposer le chemin depuis le `location`.
+        # L'omettre enverrait toutes les requêtes sur la racine de l'API.
+        set $upstream ${API_UPSTREAM};
+        proxy_pass $upstream$request_uri;
+
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # L'API déclare `app.set('trust proxy', 1)` : c'est ce qui lui permet de
+        # lire l'adresse réelle du client dans `X-Forwarded-For` et de
+        # l'enregistrer au journal d'audit. Sans cet en-tête, chaque entrée
+        # porterait l'adresse du conteneur nginx — inutile pour une enquête.
+        #
+        # Le flag `secure` du cookie, lui, dépend de `NODE_ENV`, pas du schéma.
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+
+        # Le dépôt d'un tracé peut atteindre la limite métier de 20 Mo. La valeur
+        # par défaut de nginx est de 1 Mo : sans ce réglage, toute soumission un
+        # peu lourde serait refusée par le relais avec un 413, avant même
+        # d'atteindre l'API et son message d'erreur explicite.
+        client_max_body_size ${MAX_UPLOAD_SIZE};
+
+        # L'analyse s'exécute en arrière-plan, mais la soumission elle-même
+        # attend le téléversement vers le stockage objet.
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
+    }
+
+    # --- Fichiers statiques --------------------------------------------------
+    #
+    # Vite préfixe les noms d'une empreinte de contenu : un fichier donné ne
+    # change jamais, il est donc immuable et peut être gardé un an.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable" always;
+        try_files $uri =404;
+    }
+
+    # `index.html` ne doit jamais être mis en cache : c'est lui qui pointe vers
+    # les empreintes des fichiers, et une version périmée servirait
+    # indéfiniment l'ancienne application après un déploiement.
+    location = /index.html {
+        add_header Cache-Control "no-cache, must-revalidate" always;
+    }
+
+    # --- Repli de l'application monopage -------------------------------------
+    #
+    # `wouter` gère les routes côté client : un rechargement sur `/analyze/:id`
+    # doit renvoyer `index.html`, sinon le navigateur reçoit un 404 alors que la
+    # page existe.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

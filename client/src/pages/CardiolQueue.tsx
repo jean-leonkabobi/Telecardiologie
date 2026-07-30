@@ -165,6 +165,11 @@ function QueueCard({ item, position, actionLabel, onAction, pending }: QueueCard
               {item.status === 'ANALYSIS_FAILED' && (
                 <Chip label="Analyse IA indisponible" color="warning" />
               )}
+              {/* Sollicitation venue d'une autre structure : le cardiologue doit
+                  savoir qu'il sort de son périmètre habituel. */}
+              {item.openToExternalReview && (
+                <Chip label="Expertise externe demandée" color="info" variant="outlined" />
+              )}
             </Stack>
 
             <Grid container spacing={2}>
