@@ -3,6 +3,7 @@ import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -23,62 +24,85 @@ const GAINS = [5, 10, 20] as const;
 /** Millimètres par pixel logique. Un carreau fin de 1 mm fait 4 px. */
 const PX_PER_MM = 4;
 
-/** Disposition 3×4 conventionnelle, plus la bande de rythme. */
-const LAYOUT: string[][] = [
-  ['I', 'aVR', 'V1', 'V4'],
-  ['II', 'aVL', 'V2', 'V5'],
-  ['III', 'aVF', 'V3', 'V6'],
-];
+/**
+ * Hauteur d'une piste et gouttière, en millimètres.
+ *
+ * Répliquées depuis `ECG_TRACK_HEIGHT_MM` et `ECG_GUTTER_MM` du domaine serveur
+ * (src/domain/value-objects/EcgWaveform.ts) : une constante ne se partage pas
+ * entre deux dépôts. Les faire diverger produirait un tracé à l'écran qui ne se
+ * superpose plus à l'impression.
+ */
+const HAUTEUR_PISTE_MM = 30;
+
+const GOUTTIERE_MM = 14;
+
 const RHYTHM_LEAD = 'II';
+
+interface Mesure {
+  /** Position en secondes depuis le début de la piste, et amplitude en mV. */
+  t0: number;
+  v0: number;
+  t1: number;
+  v1: number;
+  enCours: boolean;
+}
 
 interface EcgWaveformViewerProps {
   waveform: EcgWaveform;
 }
 
 /**
- * Restitue un tracé ECG 12 dérivations sur grille millimétrée.
+ * Restitue un tracé ECG sur grille millimétrée, aux conventions de l'appareil.
  *
  * **Canvas plutôt que SVG.** Un tracé de dix secondes à 500 Hz représente 5 000
  * points par dérivation, soit 60 000 nœuds pour les douze : autant d'éléments
  * dans le DOM rendrait le défilement saccadé. Le canvas dessine en une passe.
  *
- * Le rendu suit les conventions de l'électrocardiographe — disposition 3×4,
- * bande de rythme en dérivation II, grille 1 mm / 5 mm — parce qu'un cardiologue
- * lit par reconnaissance de formes : déplacer les repères l'obligerait à
- * recalculer ce qu'il sait mesurer d'un coup d'œil.
+ * **L'échelle ne se négocie pas.** 25 mm/s et 10 mm/mV définissent ce que vaut un
+ * carreau ; les respecter est ce qui permet de mesurer un intervalle à l'écran
+ * comme à la règle sur le papier. Le tracé occupe donc la largeur que l'échéance
+ * exige et défile horizontalement si la place manque, au lieu d'être comprimé.
  */
 export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
   const theme = useTheme();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const conteneurRef = useRef<HTMLDivElement | null>(null);
 
   const [speed, setSpeed] = useState<number>(25);
   const [gain, setGain] = useState<number>(10);
-  const [curseur, setCurseur] = useState<{ x: number; secondes: number } | null>(null);
-  const [largeur, setLargeur] = useState(900);
+  const [curseur, setCurseur] = useState<{ x: number; t: number } | null>(null);
+  const [mesure, setMesure] = useState<Mesure | null>(null);
 
   const parNom = useMemo(
     () => new Map(waveform.leads.map((l) => [l.name, l.samples])),
     [waveform.leads],
   );
 
-  // La largeur du canvas suit celle du conteneur : un tracé tronqué à droite
-  // ferait manquer les derniers battements.
-  useEffect(() => {
-    const element = conteneurRef.current;
-    if (!element) return;
+  /**
+   * La grille vient du serveur, avec le signal.
+   *
+   * La règle — 3×4 pour douze dérivations, 3×2 pour six, une ligne par piste
+   * au-delà — est écrite une seule fois, dans le domaine, et sert aussi au
+   * compte rendu PDF. La recopier ici aurait garanti la divergence.
+   */
+  const lignes = useMemo(
+    () => (waveform.layout.length > 0 ? waveform.layout : waveform.leads.map((l) => [l.name])),
+    [waveform.layout, waveform.leads],
+  );
 
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry) setLargeur(Math.max(360, Math.floor(entry.contentRect.width)));
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
+  const colonnes = Math.max(...lignes.map((l) => l.length));
+  const secondesParPiste = waveform.durationSeconds / colonnes;
 
-  const secondesParPiste = 2.5;
-  const hauteurPisteMm = 20;
-  const hauteurPiste = hauteurPisteMm * PX_PER_MM;
-  const hauteur = hauteurPiste * (LAYOUT.length + 1);
+  const pxParSeconde = speed * PX_PER_MM;
+  const pxParMv = gain * PX_PER_MM;
+  const gouttiere = GOUTTIERE_MM * PX_PER_MM;
+  const hauteurPiste = HAUTEUR_PISTE_MM * PX_PER_MM;
+
+  // La bande de rythme n'est ajoutée que si elle apporte quelque chose : sur une
+  // disposition d'une seule colonne, chaque piste couvre déjà toute la durée.
+  const avecBandeRythme = colonnes > 1 && parNom.has(RHYTHM_LEAD);
+
+  const largeur = Math.ceil(gouttiere + secondesParPiste * colonnes * pxParSeconde);
+  const hauteur = hauteurPiste * (lignes.length + (avecBandeRythme ? 1 : 0));
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -95,39 +119,35 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
     contexte.setTransform(ratio, 0, 0, ratio, 0, 0);
 
     const couleurs = {
-      fond: theme.palette.background.paper,
-      grilleFine: theme.palette.mode === 'dark' ? 'rgba(232,108,104,0.13)' : 'rgba(181,30,38,0.11)',
-      grilleForte: theme.palette.mode === 'dark' ? 'rgba(232,108,104,0.28)' : 'rgba(181,30,38,0.26)',
-      trace: theme.palette.mode === 'dark' ? '#f0d7d5' : '#1b1414',
-      libelle: theme.palette.text.secondary,
+      // Fond blanc dans les deux modes : un tracé se lit sur papier clair, et
+      // c'est ainsi qu'il sera imprimé. L'inverser changerait la perception des
+      // amplitudes.
+      fond: '#ffffff',
+      grilleFine: 'rgba(181,30,38,0.14)',
+      grilleForte: 'rgba(181,30,38,0.32)',
+      trace: '#1b1414',
+      libelle: '#6c6060',
       curseur: theme.palette.primary.main,
+      mesure: theme.palette.info.main,
     };
 
     contexte.fillStyle = couleurs.fond;
     contexte.fillRect(0, 0, largeur, hauteur);
-
     dessinerGrille(contexte, largeur, hauteur, couleurs);
 
-    const pxParSeconde = speed * PX_PER_MM;
-    const pxParMv = gain * PX_PER_MM;
-    const largeurColonne = secondesParPiste * pxParSeconde;
-    const colonnes = Math.max(1, Math.floor(largeur / largeurColonne));
+    lignes.forEach((ligne, indexLigne) => {
+      const hautPiste = hauteurPiste * indexLigne;
+      const baseY = hautPiste + hauteurPiste / 2;
 
-    contexte.lineWidth = 1.4;
-    contexte.strokeStyle = couleurs.trace;
-    contexte.lineJoin = 'round';
+      etalonner(contexte, { x: 4, baseY, pxParMv, couleur: couleurs.trace });
 
-    LAYOUT.forEach((ligne, indexLigne) => {
-      const baseY = hauteurPiste * indexLigne + hauteurPiste / 2;
-
-      ligne.slice(0, colonnes).forEach((nom, indexColonne) => {
+      ligne.forEach((nom, indexColonne) => {
         const samples = parNom.get(nom);
-        const decalageX = indexColonne * largeurColonne;
+        const decalageX = gouttiere + indexColonne * secondesParPiste * pxParSeconde;
 
-        // Le libellé est posé même sans signal : son absence est une information.
         contexte.fillStyle = couleurs.libelle;
         contexte.font = '600 11px ui-monospace, monospace';
-        contexte.fillText(nom, decalageX + 6, baseY - hauteurPiste / 2 + 14);
+        contexte.fillText(nom, decalageX + 4, hautPiste + 14);
 
         if (!samples) return;
 
@@ -137,6 +157,18 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
           debut + Math.round(secondesParPiste * waveform.samplingHz),
         );
 
+        /**
+         * Chaque piste est détourée.
+         *
+         * Sans découpe, un QRS de 2 mV au gain de 20 mm/mV dépassait de sa piste
+         * et se dessinait par-dessus la ligne voisine — on croyait à une anomalie
+         * de la dérivation du dessus.
+         */
+        contexte.save();
+        contexte.beginPath();
+        contexte.rect(0, hautPiste, largeur, hauteurPiste);
+        contexte.clip();
+
         tracerSegment(contexte, samples, debut, fin, {
           decalageX,
           baseY,
@@ -145,28 +177,35 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
           samplingHz: waveform.samplingHz,
           couleur: couleurs.trace,
         });
+
+        contexte.restore();
       });
     });
 
-    // Bande de rythme : la dérivation II sur toute la largeur, pour juger la
-    // régularité — ce qu'une piste de 2,5 s ne permet pas.
-    const rythme = parNom.get(RHYTHM_LEAD);
-    const baseRythme = hauteurPiste * LAYOUT.length + hauteurPiste / 2;
+    if (avecBandeRythme) {
+      const rythme = parNom.get(RHYTHM_LEAD)!;
+      const hautPiste = hauteurPiste * lignes.length;
+      const baseRythme = hautPiste + hauteurPiste / 2;
 
-    contexte.fillStyle = couleurs.libelle;
-    contexte.font = '600 11px ui-monospace, monospace';
-    contexte.fillText(`${RHYTHM_LEAD} — bande de rythme`, 6, baseRythme - hauteurPiste / 2 + 14);
+      etalonner(contexte, { x: 4, baseY: baseRythme, pxParMv, couleur: couleurs.trace });
 
-    if (rythme) {
-      const secondesVisibles = largeur / pxParSeconde;
-      tracerSegment(contexte, rythme, 0, Math.min(rythme.length, Math.round(secondesVisibles * waveform.samplingHz)), {
-        decalageX: 0,
+      contexte.fillStyle = couleurs.libelle;
+      contexte.font = '600 11px ui-monospace, monospace';
+      contexte.fillText(`${RHYTHM_LEAD} — bande de rythme`, gouttiere + 4, hautPiste + 14);
+
+      contexte.save();
+      contexte.beginPath();
+      contexte.rect(0, hautPiste, largeur, hauteurPiste);
+      contexte.clip();
+      tracerSegment(contexte, rythme, 0, rythme.length, {
+        decalageX: gouttiere,
         baseY: baseRythme,
         pxParSeconde,
         pxParMv,
         samplingHz: waveform.samplingHz,
         couleur: couleurs.trace,
       });
+      contexte.restore();
     }
 
     if (curseur) {
@@ -179,15 +218,58 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
       contexte.stroke();
       contexte.setLineDash([]);
     }
-  }, [waveform, parNom, speed, gain, largeur, hauteur, hauteurPiste, secondesParPiste, curseur, theme]);
+
+    if (mesure) {
+      const x0 = gouttiere + mesure.t0 * pxParSeconde;
+      const x1 = gouttiere + mesure.t1 * pxParSeconde;
+
+      contexte.fillStyle = 'rgba(39,124,153,0.12)';
+      contexte.fillRect(Math.min(x0, x1), 0, Math.abs(x1 - x0), hauteur);
+
+      contexte.strokeStyle = couleurs.mesure;
+      contexte.lineWidth = 1.5;
+      contexte.beginPath();
+      for (const x of [x0, x1]) {
+        contexte.moveTo(x, 0);
+        contexte.lineTo(x, hauteur);
+      }
+      contexte.stroke();
+    }
+  }, [
+    waveform,
+    parNom,
+    lignes,
+    colonnes,
+    secondesParPiste,
+    speed,
+    gain,
+    largeur,
+    hauteur,
+    hauteurPiste,
+    gouttiere,
+    pxParSeconde,
+    pxParMv,
+    avecBandeRythme,
+    curseur,
+    mesure,
+    theme,
+  ]);
+
+  /** Coordonnées d'un événement souris, en secondes et millivolts. */
+  const versSignal = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const dansLaPiste = ((y % hauteurPiste) - hauteurPiste / 2) / pxParMv;
+    return { x, t: Math.max(0, (x - gouttiere) / pxParSeconde), v: -dansLaPiste };
+  };
+
+  const deltaT = mesure ? Math.abs(mesure.t1 - mesure.t0) : 0;
+  const deltaV = mesure ? Math.abs(mesure.v1 - mesure.v0) : 0;
 
   return (
     <Stack spacing={1.5}>
-      <Stack
-        direction="row"
-        spacing={1.5}
-        sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1 }}
-      >
+      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
         <Stack spacing={0.25}>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             Vitesse
@@ -230,6 +312,14 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
           <Chip label={waveform.sourceFormat} size="small" variant="outlined" />
           <Chip label={`${waveform.samplingHz} Hz`} size="small" variant="outlined" />
           <Chip label={`${waveform.durationSeconds} s`} size="small" variant="outlined" />
+          <Tooltip title={`${waveform.leads.length} dérivation(s) décodée(s)`}>
+            <Chip
+              label={`${waveform.leads.length} dériv.`}
+              size="small"
+              variant="outlined"
+              color={waveform.leads.length >= 12 ? 'default' : 'warning'}
+            />
+          </Tooltip>
           {waveform.estimatedHeartRateBpm !== null && (
             <Chip
               label={`${waveform.estimatedHeartRateBpm} bpm mesurés`}
@@ -240,42 +330,113 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
         </Stack>
       </Stack>
 
+      {/**
+        * Défilement horizontal, jamais de compression.
+        *
+        * `width: max-content` sur le canvas le laisse occuper la largeur exacte
+        * que l'échelle impose. Un `width: 100%` — ce qui était fait — étirait ou
+        * écrasait l'image : les carreaux ne valaient plus 0,2 s, et toute mesure
+        * prise à l'écran devenait fausse sans que rien ne l'indique.
+        */}
       <Box
-        ref={conteneurRef}
         sx={{
           border: 1,
           borderColor: 'divider',
           borderRadius: 1.5,
-          overflow: 'hidden',
+          overflowX: 'auto',
+          overflowY: 'hidden',
           lineHeight: 0,
+          bgcolor: '#ffffff',
         }}
       >
         <canvas
           ref={canvasRef}
-          style={{ width: '100%', height: hauteur, display: 'block', cursor: 'crosshair' }}
-          onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            setCurseur({ x, secondes: x / (speed * PX_PER_MM) });
+          style={{
+            width: largeur,
+            height: hauteur,
+            maxWidth: 'none',
+            display: 'block',
+            cursor: 'crosshair',
           }}
-          onMouseLeave={() => setCurseur(null)}
+          onMouseDown={(e) => {
+            const { t, v } = versSignal(e);
+            setMesure({ t0: t, v0: v, t1: t, v1: v, enCours: true });
+          }}
+          onMouseMove={(e) => {
+            const { x, t, v } = versSignal(e);
+            setCurseur({ x, t });
+            setMesure((m) => (m?.enCours ? { ...m, t1: t, v1: v } : m));
+          }}
+          onMouseUp={() =>
+            setMesure((m) => {
+              if (!m) return null;
+              // Un simple clic, sans glissement : c'est une demande d'effacement,
+              // pas une mesure de zéro seconde.
+              if (Math.abs(m.t1 - m.t0) < 0.01) return null;
+              return { ...m, enCours: false };
+            })
+          }
+          onMouseLeave={() => {
+            setCurseur(null);
+            setMesure((m) => (m?.enCours ? null : m));
+          }}
         />
       </Box>
 
-      <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap' }}>
+      <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          Un grand carreau ={' '}
-          <strong>{(5 / speed).toFixed(2).replace('.', ',')} s</strong> ·{' '}
+          Un grand carreau = <strong>{(5 / speed).toFixed(2).replace('.', ',')} s</strong> ·{' '}
           <strong>{(5 / gain).toFixed(2).replace('.', ',')} mV</strong>
         </Typography>
-        {curseur && (
+
+        {mesure && !mesure.enCours ? (
+          <Typography variant="caption" sx={{ color: 'info.main', fontWeight: 600 }}>
+            Compas : {Math.round(deltaT * 1000)} ms · {deltaV.toFixed(2).replace('.', ',')} mV
+            {deltaT > 0.2 && ` · ${Math.round(60 / deltaT)} bpm si intervalle R-R`}
+          </Typography>
+        ) : (
+          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+            Glissez sur le tracé pour mesurer un intervalle
+          </Typography>
+        )}
+
+        {curseur && !mesure && (
           <Typography variant="caption" sx={{ color: 'primary.main' }}>
-            Curseur à {curseur.secondes.toFixed(2).replace('.', ',')} s
+            {curseur.t.toFixed(2).replace('.', ',')} s
           </Typography>
         )}
       </Stack>
     </Stack>
   );
+}
+
+/**
+ * Impulsion d'étalonnage : 1 mV sur 5 mm, en tête de chaque piste.
+ *
+ * C'est le premier repère que cherche un cardiologue sur un tracé papier : sa
+ * hauteur donne le gain réellement appliqué. Sans elle, rien ne permet de
+ * vérifier qu'un complexe de petite amplitude n'est pas simplement un tracé
+ * enregistré à demi-gain.
+ */
+function etalonner(
+  contexte: CanvasRenderingContext2D,
+  options: { x: number; baseY: number; pxParMv: number; couleur: string },
+): void {
+  const { x, baseY, pxParMv, couleur } = options;
+  const hauteur1mV = pxParMv;
+  const largeurPalier = 5 * PX_PER_MM;
+
+  contexte.strokeStyle = couleur;
+  contexte.lineWidth = 1.4;
+  contexte.lineJoin = 'miter';
+  contexte.beginPath();
+  contexte.moveTo(x, baseY);
+  contexte.lineTo(x + 2, baseY);
+  contexte.lineTo(x + 2, baseY - hauteur1mV);
+  contexte.lineTo(x + 2 + largeurPalier, baseY - hauteur1mV);
+  contexte.lineTo(x + 2 + largeurPalier, baseY);
+  contexte.lineTo(x + 4 + largeurPalier, baseY);
+  contexte.stroke();
 }
 
 /** Grille millimétrée : trait fin au millimètre, trait fort tous les 5 mm. */
@@ -334,6 +495,7 @@ function tracerSegment(
 
   contexte.strokeStyle = couleur;
   contexte.lineWidth = 1.4;
+  contexte.lineJoin = 'round';
   contexte.beginPath();
 
   let premier = true;

@@ -31,6 +31,28 @@ export interface PatientSnapshot {
   genderLabel: string;
 }
 
+/**
+ * Motifs d'examen, alignés sur l'énumération du serveur.
+ *
+ * Les libellés viennent de l'API (`indicationLabel`) et ne sont pas recopiés
+ * ici : un intitulé traduit à deux endroits finit par différer. La liste des
+ * valeurs, elle, sert au formulaire — d'où `ECG_INDICATION_OPTIONS`.
+ */
+export const ECG_INDICATION_VALUES = [
+  'DOULEUR_THORACIQUE',
+  'DYSPNEE',
+  'PALPITATIONS',
+  'SYNCOPE',
+  'MALAISE',
+  'BILAN_PREOPERATOIRE',
+  'SUIVI_TRAITEMENT',
+  'HYPERTENSION',
+  'DEPISTAGE',
+  'AUTRE',
+] as const;
+
+export type EcgIndicationValue = (typeof ECG_INDICATION_VALUES)[number];
+
 export interface EcgRequestSummary {
   id: string;
   reference: string;
@@ -47,6 +69,10 @@ export interface EcgRequestSummary {
   externalReviewReason: string | null;
   externalReviewRequestedAt: string | null;
   patient: PatientSnapshot;
+  /** Motif codé de l'examen, et son libellé français. */
+  indication: EcgIndicationValue;
+  indicationApi: string;
+  indicationLabel: string;
   symptoms: string;
   submittedById: string;
   assignedToId: string | null;
@@ -118,6 +144,15 @@ export interface EcgWaveform {
   sourceFormat: string;
   /** Mesurée sur les pics R du signal, pas lue dans un rapport. */
   estimatedHeartRateBpm: number | null;
+  /**
+   * Grille d'affichage, calculée par le serveur d'après les dérivations reçues.
+   *
+   * Servie plutôt que recalculée ici : le compte rendu PDF et ce visualiseur
+   * doivent produire des tracés **superposables**. Deux implémentations de la
+   * même convention finiraient par divergerie — un cardiologue qui mesure à
+   * l'écran puis vérifie sur l'impression ne doit pas trouver deux géométries.
+   */
+  layout: string[][];
   leads: { name: string; samples: number[] }[];
 }
 
@@ -143,6 +178,19 @@ export interface EcgRequestDetail extends EcgRequestSummary {
   clinicalContext: string | null;
   medicalHistory: string | null;
   additionalComments: string | null;
+  /** Conditions de l'enregistrement, distinctes du contexte de la demande. */
+  recording: {
+    recordedAt: string | null;
+    currentMedication: string | null;
+    hasPacemaker: boolean;
+    systolicBp: number | null;
+    diastolicBp: number | null;
+    weightKg: number | null;
+    heightCm: number | null;
+    deviceModel: string | null;
+    /** Calculé par le serveur quand poids et taille sont tous deux connus. */
+    bmi: number | null;
+  };
   reviewComment: string | null;
   analysis: EcgAnalysisResult | null;
   analysisFailureReason: string | null;

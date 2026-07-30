@@ -1,40 +1,53 @@
 import Swal, { type SweetAlertOptions } from 'sweetalert2';
 
 /**
- * Alertes et confirmations, sur SweetAlert2 — **toutes centrées à l'écran**.
+ * Alertes et confirmations, sur SweetAlert2 — **au rendu par défaut**.
  *
- * Tout passe par ce module plutôt que par `Swal` directement : la charte, les
- * libellés français et l'accessibilité sont définis une seule fois, et les
- * écrans n'ont plus à les répéter.
+ * Tout passe par ce module plutôt que par `Swal` directement : les libellés
+ * français et le comportement sont définis une seule fois, et les écrans n'ont
+ * plus à les répéter.
  *
- * Les couleurs sont lues sur les variables CSS du thème MUI, donc le mode
- * sombre est suivi sans configuration supplémentaire.
+ * **Aucun habillage.** La version précédente redéfinissait les couleurs, les
+ * boutons, les rayons et la typographie par une feuille de style dédiée. Elle a
+ * été retirée : la bibliothèque a son apparence, elle est cohérente, et la
+ * maintenir en parallèle du thème MUI coûtait plus qu'elle ne rapportait. Ne
+ * restent ici que des réglages de **comportement** et de **langue**.
  */
 
-function cssVar(name: string, fallback: string): string {
-  if (typeof window === 'undefined') return fallback;
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return value || fallback;
-}
-
-/** Options communes, relues à chaque appel pour refléter le mode courant. */
+/** Options communes à toutes les boîtes. */
 function baseOptions(): SweetAlertOptions {
   return {
-    buttonsStyling: false,
-    reverseButtons: true,
-    focusConfirm: false,
+    /**
+     * La boîte peut être déplacée à la souris.
+     *
+     * Ce n'est pas un ornement : centrée, elle recouvre justement ce que le
+     * soignant doit relire pour répondre. Un motif de rejet à rédiger pendant
+     * qu'on examine le tracé, une erreur de saisie qui masque le champ fautif —
+     * pouvoir pousser la boîte de côté évite de la fermer, de lire, puis de tout
+     * recommencer.
+     *
+     * La prise se fait sur le fond de la boîte ou sur son icône ; les champs et
+     * les boutons gardent leur comportement normal.
+     */
+    draggable: true,
+
+    /**
+     * Thème suivant celui du système — un paramètre natif de la bibliothèque, pas
+     * une feuille de style.
+     *
+     * L'application a un mode sombre. Sans cela, une boîte blanche s'ouvrirait en
+     * pleine nuit au milieu d'un écran sombre, sur un poste de garde.
+     */
+    theme: 'auto',
+
+    /**
+     * Empêche SweetAlert2 de modifier la hauteur du `body`.
+     *
+     * Réglage fonctionnel : par défaut la bibliothèque ajuste le document pour
+     * centrer sa boîte, ce qui fait sauter la page derrière elle à l'ouverture
+     * comme à la fermeture.
+     */
     heightAuto: false,
-    background: cssVar('--mui-palette-background-paper', '#ffffff'),
-    color: cssVar('--mui-palette-text-primary', '#1b1414'),
-    customClass: {
-      popup: 'tc-swal-popup',
-      title: 'tc-swal-title',
-      htmlContainer: 'tc-swal-text',
-      confirmButton: 'tc-swal-confirm',
-      denyButton: 'tc-swal-deny',
-      cancelButton: 'tc-swal-cancel',
-      actions: 'tc-swal-actions',
-    },
   };
 }
 
@@ -42,14 +55,6 @@ export interface ToastOptions {
   title: string;
   text?: string;
 }
-
-/** Couleur de l'icône, alignée sur la sémantique du thème. */
-const ICON_COLOR_VAR: Record<'success' | 'error' | 'warning' | 'info', string> = {
-  success: '--mui-palette-success-main',
-  error: '--mui-palette-error-main',
-  warning: '--mui-palette-warning-main',
-  info: '--mui-palette-info-main',
-};
 
 /**
  * Notification centrée, au milieu de l'écran.
@@ -75,14 +80,11 @@ function centeredAlert(
 
   void Swal.fire({
     ...baseOptions(),
-    position: 'center',
     icon,
-    iconColor: cssVar(ICON_COLOR_VAR[icon], '#b51e26'),
     title: options.title,
     text: options.text,
     showConfirmButton: mustAcknowledge,
     confirmButtonText: 'Fermer',
-    focusConfirm: mustAcknowledge,
     ...(mustAcknowledge
       ? {}
       : {
@@ -130,21 +132,15 @@ export async function confirm(options: ConfirmOptions): Promise<boolean> {
 
   const result = await Swal.fire({
     ...baseOptions(),
+    // L'avertissement pour une action destructrice, la question sinon : c'est
+    // l'icône qui porte la différence, sans couleur à redéfinir.
     icon: danger ? 'warning' : 'question',
-    iconColor: cssVar(
-      danger ? '--mui-palette-error-main' : '--mui-palette-primary-main',
-      danger ? '#841521' : '#b51e26',
-    ),
     title: options.title,
     text: options.text,
     showCancelButton: true,
     confirmButtonText: options.confirmLabel ?? (danger ? 'Supprimer' : 'Confirmer'),
-    cancelButtonText: options.cancelLabel ?? 'Annuler',
+    cancelButtonText: 'Annuler',
     focusCancel: true,
-    customClass: {
-      ...(baseOptions().customClass as Record<string, string>),
-      confirmButton: danger ? 'tc-swal-confirm tc-swal-danger' : 'tc-swal-confirm',
-    },
   });
 
   return result.isConfirmed;
@@ -159,10 +155,6 @@ export async function alertDialog(
   await Swal.fire({
     ...baseOptions(),
     icon,
-    iconColor: cssVar(
-      icon === 'error' ? '--mui-palette-error-main' : '--mui-palette-primary-main',
-      '#b51e26',
-    ),
     title,
     text,
     confirmButtonText: 'Fermer',
@@ -191,9 +183,7 @@ export async function promptText(options: PromptOptions): Promise<string | null>
 
   const result = await Swal.fire({
     ...baseOptions(),
-    position: 'center',
     icon: 'question',
-    iconColor: cssVar('--mui-palette-primary-main', '#b51e26'),
     title: options.title,
     text: options.text,
     input: 'textarea',
@@ -203,7 +193,6 @@ export async function promptText(options: PromptOptions): Promise<string | null>
     showCancelButton: true,
     confirmButtonText: options.confirmLabel ?? 'Confirmer',
     cancelButtonText: 'Annuler',
-    focusCancel: false,
     inputValidator: (value) => {
       const saisie = value?.trim() ?? '';
       if (saisie.length < minLength) {

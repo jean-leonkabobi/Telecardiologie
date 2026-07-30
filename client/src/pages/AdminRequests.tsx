@@ -116,6 +116,12 @@ export default function AdminRequests() {
       valueGetter: (_value, row) => row.patient.fullName,
     },
     {
+      field: 'indicationLabel',
+      headerName: 'Motif',
+      flex: 1,
+      minWidth: 150,
+    },
+    {
       field: 'priorityLabel',
       headerName: 'Priorité',
       width: 100,
@@ -233,6 +239,9 @@ export default function AdminRequests() {
                       label={`${f.label} (${requests.filter(FILTER_PREDICATE[f.key]).length})`}
                       color={filter === f.key ? f.color : 'default'}
                       variant={filter === f.key ? 'filled' : 'outlined'}
+                      // Le remplissage signale le filtre actif à l'œil ; `aria-pressed`
+                      // le signale au lecteur d'écran, qui ne voit ni couleur ni contour.
+                      aria-pressed={filter === f.key}
                       onClick={() => setFilter(f.key)}
                     />
                   ))}

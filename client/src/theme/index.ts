@@ -41,13 +41,6 @@ const neutral = {
 } as const;
 
 /**
- * Couleurs de série des graphiques.
- *
- * Le rouge de marque ouvre la série, les suivantes s'en écartent nettement en
- * teinte pour rester distinguables — y compris pour un daltonisme deutan, où
- * deux rouges voisins deviendraient indiscernables.
- */
-/**
  * Hauteur des contrôles d'un formulaire de saisie.
  *
  * Champs et bouton partagent la même valeur : sur un formulaire de quelques
@@ -63,6 +56,13 @@ const neutral = {
  */
 export const FORM_CONTROL_HEIGHT = 56;
 
+/**
+ * Couleurs de série des graphiques.
+ *
+ * Le rouge de marque ouvre la série, les suivantes s'en écartent nettement en
+ * teinte pour rester distinguables — y compris pour un daltonisme deutan, où
+ * deux rouges voisins deviendraient indiscernables.
+ */
 export const chartPalette = {
   light: ['#b51e26', '#277c99', '#37844c', '#bb731b', '#6b4d8f', '#8a7060'],
   dark: ['#e86c68', '#67b7d6', '#66ba7f', '#eca851', '#a48ec9', '#c4a596'],

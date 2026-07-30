@@ -84,6 +84,17 @@ server {
         try_files $uri =404;
     }
 
+    # Les polices viennent de `public/` : leur nom ne porte pas d'empreinte de
+    # contenu, elles ne peuvent donc pas être déclarées immuables — remplacer un
+    # fichier laisserait les navigateurs sur l'ancienne version pendant un an. Un
+    # mois est un bon compromis : la police ne change jamais en pratique, et une
+    # correction reste diffusable.
+    location /fonts/ {
+        expires 30d;
+        add_header Cache-Control "public" always;
+        try_files $uri =404;
+    }
+
     # `index.html` ne doit jamais être mis en cache : c'est lui qui pointe vers
     # les empreintes des fichiers, et une version périmée servirait
     # indéfiniment l'ancienne application après un déploiement.

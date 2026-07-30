@@ -34,6 +34,7 @@ import {
 } from '@/api/hooks';
 import type { EcgAnalysisResult, EcgRequestFullDetail, ReviewAction } from '@/api/types';
 import { EcgDocumentViewer } from '@/components/ecg/EcgDocumentViewer';
+import { EcgRecordingContext } from '@/components/ecg/EcgRecordingContext';
 import { EcgWaveformViewer } from '@/components/ecg/EcgWaveformViewer';
 import { describeRedFlag, hasCriticalFlag } from '@/api/redFlags';
 import { useAuth } from '@/contexts/AuthContext';
@@ -231,6 +232,7 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
       <PageHeader
         title="Analyse ECG"
         subtitle={`${request.reference} · ${request.patient.fullName}`}
+        backTo={{ href: '/queue', label: "Retour à la file d'attente" }}
         action={
           <Stack direction="row" spacing={1}>
             <StatusChip status={request.priorityLabel} statusKey={request.priority} size="medium" />
@@ -292,27 +294,20 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
       )}
 
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12, lg: 4 }}>
-          <SectionCard title="Informations du patient">
-            <Stack spacing={2}>
-              <DetailItem label="Nom" value={request.patient.fullName} />
-              <DetailItem label="Référence patient" value={request.patient.reference} />
-              <DetailItem label="Âge" value={`${request.patient.age} ans`} />
-              <DetailItem label="Sexe" value={request.patient.genderLabel} />
-              <DetailItem label="Symptômes" value={request.symptoms} />
-              <DetailItem label="Contexte clinique" value={request.clinicalContext ?? '—'} />
-              <DetailItem label="Antécédents" value={request.medicalHistory ?? '—'} />
-              <DetailItem label="Commentaires" value={request.additionalComments ?? '—'} />
-              <Divider />
-              <DetailItem
-                label="Soumise par"
-                value={`${request.submittedByName ?? '—'} le ${new Date(request.createdAt).toLocaleString('fr-FR')}`}
-              />
-            </Stack>
-          </SectionCard>
-        </Grid>
-
-        <Grid size={{ xs: 12, lg: 4 }}>
+        {/**
+          * Le tracé occupe toute la largeur, et vient en premier.
+          *
+          * Il était logé dans une colonne d'un tiers, à côté de l'identité et de
+          * l'interprétation. Or un ECG douze dérivations à l'échelle réglementaire
+          * demande environ mille pixels : dans un tiers d'écran, la disposition ne
+          * pouvait afficher que deux des quatre groupes de colonnes — V1 à V6
+          * n'apparaissaient jamais, sans que rien ne le signale.
+          *
+          * C'est aussi la pièce sur laquelle porte la décision : la mettre en tête
+          * suit l'ordre dans lequel le cardiologue travaille — il regarde le tracé,
+          * puis confronte l'interprétation proposée.
+          */}
+        <Grid size={12}>
           <SectionCard title="Tracé ECG">
             <Stack spacing={2}>
               {waveform.isLoading && <LinearProgress />}
@@ -342,7 +337,11 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                 </Stack>
               )}
 
-              <Stack direction="row" spacing={1} sx={{ justifyContent: 'center' }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 1 }}
+              >
                 <Button
                   variant="contained"
                   startIcon={<PictureAsPdfIcon />}
@@ -365,7 +364,7 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                 </Tooltip>
               </Stack>
 
-              <Typography variant="caption" sx={{ color: 'text.secondary', textAlign: 'center' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {request.file.name} · {request.file.mimeType} ·{' '}
                 {(request.file.sizeBytes / 1024).toFixed(0)} Ko
               </Typography>
@@ -374,7 +373,41 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
         </Grid>
 
         <Grid size={{ xs: 12, lg: 4 }}>
-          <SectionCard title="Interprétation">
+          <SectionCard title="Informations du patient">
+            <Stack spacing={2}>
+              <DetailItem label="Nom" value={request.patient.fullName} />
+              <DetailItem label="Référence patient" value={request.patient.reference} />
+              <DetailItem label="Âge" value={`${request.patient.age} ans`} />
+              <DetailItem label="Sexe" value={request.patient.genderLabel} />
+              <Divider />
+              {/* Les conditions de l'enregistrement avant les symptômes : elles
+                  disent comment lire le tracé, pas seulement pourquoi il a été
+                  demandé. */}
+              <EcgRecordingContext
+                indicationLabel={request.indicationLabel}
+                recording={request.recording}
+              />
+              <Divider />
+              <DetailItem label="Symptômes" value={request.symptoms} />
+              <DetailItem label="Contexte clinique" value={request.clinicalContext ?? '—'} />
+              <DetailItem label="Antécédents" value={request.medicalHistory ?? '—'} />
+              <DetailItem label="Commentaires" value={request.additionalComments ?? '—'} />
+              <Divider />
+              <DetailItem
+                label="Soumise par"
+                value={`${request.submittedByName ?? '—'} le ${new Date(request.createdAt).toLocaleString('fr-FR')}`}
+              />
+            </Stack>
+          </SectionCard>
+        </Grid>
+
+        {/* Deux tiers pour l'interprétation et la conclusion, un tiers pour
+            l'identité : le tracé ayant pris sa propre ligne, laisser trois
+            colonnes de quatre laissait un vide d'un tiers en bout de rangée. Et
+            c'est ici qu'on lit et qu'on rédige — le champ de diagnostic mérite
+            plus large qu'une liste de six lignes. */}
+        <Grid size={{ xs: 12, lg: 8 }}>
+          <SectionCard title="Interprétation et conclusion">
             <Stack spacing={2}>
               {analysisRunning && (
                 <InfoPanel title="Analyse en cours">

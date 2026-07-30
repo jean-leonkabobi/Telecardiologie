@@ -1,109 +1,20 @@
 /**
- * Reset minimal et habillage de SweetAlert2.
+ * Reset minimal.
  *
  * Toute la mise en forme de l'application est portée par le thème MUI
  * (client/src/theme) et <CssBaseline />. Ce fichier ne contient que ce que
  * l'un et l'autre ne couvrent pas.
+ *
+ * SweetAlert2 était habillé ici — couleurs, boutons, rayons, typographie — pour
+ * l'accorder à la charte. Cet habillage a été retiré : la bibliothèque garde son
+ * apparence par défaut, et son thème suit le mode clair ou sombre par son propre
+ * paramètre `theme: 'auto'` (voir client/src/lib/alerts.ts). Une feuille de style
+ * parallèle au thème MUI demandait d'être tenue à jour en double, pour un
+ * résultat que personne ne distinguait de l'original.
  */
 
 html,
 body,
 #root {
   height: 100%;
-}
-
-/* --------------------------------------------------------------------------
-   SweetAlert2 aligné sur la charte.
-
-   SweetAlert2 rend ses fenêtres hors de l'arbre React : le thème MUI ne peut
-   pas les atteindre via `sx`. On les rattache donc aux variables CSS générées
-   par MUI (`cssVariables: true`), ce qui suffit à suivre le mode clair/sombre.
-   -------------------------------------------------------------------------- */
-
-.tc-swal-popup {
-  border-radius: 14px;
-  border: 1px solid var(--mui-palette-divider);
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  padding: 1.75rem 1.5rem 1.5rem;
-}
-
-.tc-swal-title {
-  font-size: 1.1875rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  color: var(--mui-palette-text-primary);
-}
-
-.tc-swal-text {
-  font-size: 0.9375rem;
-  line-height: 1.6;
-  color: var(--mui-palette-text-secondary);
-}
-
-.tc-swal-actions {
-  gap: 0.625rem;
-  margin-top: 1.25rem;
-}
-
-.tc-swal-confirm,
-.tc-swal-cancel,
-.tc-swal-deny {
-  font-family: inherit;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  min-height: 40px;
-  padding: 0 1.125rem;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease;
-}
-
-.tc-swal-confirm {
-  background-color: var(--mui-palette-primary-main);
-  color: var(--mui-palette-primary-contrastText);
-}
-
-.tc-swal-confirm:hover {
-  background-color: var(--mui-palette-primary-dark);
-}
-
-/* Action destructrice : rouge foncé, distinct du rouge de marque. */
-.tc-swal-danger {
-  background-color: var(--mui-palette-error-main);
-  color: var(--mui-palette-error-contrastText);
-}
-
-.tc-swal-danger:hover {
-  background-color: var(--mui-palette-error-dark);
-}
-
-.tc-swal-cancel {
-  background-color: transparent;
-  border-color: var(--mui-palette-divider);
-  color: var(--mui-palette-text-primary);
-}
-
-.tc-swal-cancel:hover {
-  background-color: var(--mui-palette-surfaceMuted);
-}
-
-/* Repère de focus visible au clavier — SweetAlert2 n'en fournit pas. */
-.tc-swal-confirm:focus-visible,
-.tc-swal-cancel:focus-visible,
-.tc-swal-deny:focus-visible {
-  outline: 2px solid var(--mui-palette-primary-main);
-  outline-offset: 2px;
-}
-
-/* Notifications en coin d'écran. */
-.swal2-toast.tc-swal-popup {
-  padding: 0.875rem 1rem;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
-}
-
-.swal2-toast .tc-swal-title {
-  font-size: 0.9375rem;
 }

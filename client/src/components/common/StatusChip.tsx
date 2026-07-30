@@ -1,5 +1,7 @@
 import Chip from '@mui/material/Chip';
 import type { ChipProps } from '@mui/material/Chip';
+import ErrorIcon from '@mui/icons-material/ErrorOutlineOutlined';
+import WarningIcon from '@mui/icons-material/WarningAmberOutlined';
 
 type Severity = 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info';
 
@@ -95,6 +97,22 @@ interface StatusChipProps extends Omit<ChipProps, 'color' | 'label'> {
   severity?: Severity;
 }
 
+/**
+ * Repère de forme sur les seules pastilles qui réclament une attention.
+ *
+ * L'asymétrie est voulue. Le libellé porte déjà le sens — la couleur n'est jamais
+ * seule à informer — mais dans une file de trente lignes, ce qu'on cherche c'est
+ * repérer l'urgent **sans lire**. Une icône se voit en vision périphérique, et
+ * survit à un daltonisme comme à une impression en noir et blanc.
+ *
+ * Rien sur « validé » ou « en cours » : un pictogramme sur chaque pastille
+ * redeviendrait un bruit uniforme, où plus rien ne ressort.
+ */
+const ICONE_PAR_SEVERITE: Partial<Record<Severity, typeof ErrorIcon>> = {
+  error: ErrorIcon,
+  warning: WarningIcon,
+};
+
 /** Pastille de statut colorée selon la sémantique métier. */
 export function StatusChip({
   status,
@@ -104,8 +122,17 @@ export function StatusChip({
   ...rest
 }: StatusChipProps) {
   const color = severity ?? statusSeverity(statusKey ?? status);
+  const Icone = ICONE_PAR_SEVERITE[color];
 
-  return <Chip label={status} color={color} variant={variant} {...rest} />;
+  return (
+    <Chip
+      label={status}
+      color={color}
+      variant={variant}
+      icon={Icone ? <Icone /> : undefined}
+      {...rest}
+    />
+  );
 }
 
 export default StatusChip;

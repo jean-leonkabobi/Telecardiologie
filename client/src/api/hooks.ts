@@ -124,11 +124,30 @@ export interface SubmitEcgRequestPayload {
   /** Format ISO `YYYY-MM-DD`. */
   patientBirthDate: string;
   patientGender: 'M' | 'F';
+  /** Motif codé, en minuscules — `palpitations`, `douleur_thoracique`. */
+  indication?: string;
   symptoms: string;
   clinicalContext?: string;
   medicalHistory?: string;
   additionalComments?: string;
   priority: 'normal' | 'urgent';
+
+  /**
+   * Contexte de l'enregistrement. Tout est facultatif.
+   *
+   * Les nombres et le booléen sont sérialisés par `String()` dans le corps
+   * multipart ; le serveur traite la chaîne vide comme une absence, ce qui évite
+   * qu'un champ laissé vide devienne un zéro.
+   */
+  recordedAt?: string;
+  currentMedication?: string;
+  hasPacemaker?: boolean;
+  systolicBp?: number;
+  diastolicBp?: number;
+  weightKg?: number;
+  heightCm?: number;
+  deviceModel?: string;
+
   file: File;
 }
 

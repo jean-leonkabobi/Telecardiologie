@@ -121,7 +121,18 @@ export default function CardiolQueue() {
                     position={index + 1}
                     actionLabel="Prendre en charge"
                     onAction={() => void handleClaim(item)}
-                    pending={claim.isPending}
+                    /**
+                     * Seule la carte cliquée passe en attente.
+                     *
+                     * `claim.isPending` seul était vrai pour **toutes** les
+                     * cartes : prendre une demande en charge faisait tourner les
+                     * trente boutons de la file, sans qu'on sache lequel agissait
+                     * — ni s'il fallait cliquer ailleurs.
+                     *
+                     * `claim.variables` porte l'identifiant de la mutation en
+                     * cours, ce qui évite un état local à tenir à jour.
+                     */
+                    pending={claim.isPending && claim.variables === item.id}
                   />
                 ))}
               </Stack>
@@ -160,6 +171,10 @@ function QueueCard({ item, position, actionLabel, onAction, pending }: QueueCard
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
               <Typography variant="h3">{item.patient.fullName}</Typography>
               <StatusChip status={item.priorityLabel} statusKey={item.priority} />
+              {/* Le motif de l'examen, sur la carte : c'est ce qui permet de
+                  hiérarchiser la file sans ouvrir chaque dossier. Une douleur
+                  thoracique et un bilan préopératoire ne s'attendent pas. */}
+              <Chip label={item.indicationLabel} color="primary" variant="outlined" />
               <Chip label={item.reference} variant="outlined" />
               {/* L'analyse a pu échouer : le tracé reste consultable. */}
               {item.status === 'ANALYSIS_FAILED' && (

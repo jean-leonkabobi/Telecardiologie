@@ -31,7 +31,27 @@ COPY . .
 # pourrait plus être changée sans reconstruire l'image.
 ENV VITE_API_BASE_URL=""
 
+# Vérification des types **avant** la compilation.
+#
+# `vite build` ne type-vérifie rien : il transpile et empaquette. Sans cette
+# étape, une image parfaitement valide pouvait être produite à partir de sources
+# qui ne compilent pas — l'erreur n'apparaissait qu'à l'exécution, dans le
+# navigateur du soignant.
+RUN npm run check
+
 RUN npm run build
+
+# Le résultat attendu existe-t-il vraiment ?
+#
+# `build.outDir` vaut `dist/public` et non `dist` : si cette clé changeait, la
+# compilation réussirait, l'étape de service copierait un dossier vide, et nginx
+# répondrait 404 sur toute l'application. Le contrôle de santé finirait par le
+# signaler, mais après le déploiement — mieux vaut échouer ici, avec la raison.
+RUN test -f dist/public/index.html || { \
+      echo "ERREUR : dist/public/index.html absent après la compilation." >&2; \
+      echo "Vérifiez build.outDir dans vite.config.ts." >&2; \
+      exit 1; \
+    }
 
 # --- 3. Service --------------------------------------------------------------
 FROM ${NGINX_IMAGE} AS runtime

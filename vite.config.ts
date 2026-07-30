@@ -1,4 +1,3 @@
-import { jsxLocPlugin } from "@builder.io/vite-plugin-jsx-loc";
 import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path from "node:path";
@@ -55,7 +54,7 @@ function writeToLogFile(source: LogSource, entries: unknown[]) {
   const logPath = path.join(LOG_DIR, `${source}.log`);
 
   // Format entries with timestamps
-  const lines = entries.map((entry) => {
+  const lines = entries.map(entry => {
     const ts = new Date().toISOString();
     return `[${ts}] ${JSON.stringify(entry)}`;
   });
@@ -131,7 +130,7 @@ function vitePluginManusDebugCollector(): Plugin {
         }
 
         let body = "";
-        req.on("data", (chunk) => {
+        req.on("data", chunk => {
           body += chunk.toString();
         });
 
@@ -161,7 +160,10 @@ function vitePluginStorageProxy(): Plugin {
           return;
         }
 
-        const forgeBaseUrl = (process.env.BUILT_IN_FORGE_API_URL || "").replace(/\/+$/, "");
+        const forgeBaseUrl = (process.env.BUILT_IN_FORGE_API_URL || "").replace(
+          /\/+$/,
+          ""
+        );
         const forgeKey = process.env.BUILT_IN_FORGE_API_KEY;
 
         if (!forgeBaseUrl || !forgeKey) {
@@ -171,7 +173,10 @@ function vitePluginStorageProxy(): Plugin {
         }
 
         try {
-          const forgeUrl = new URL("v1/storage/presign/get", forgeBaseUrl + "/");
+          const forgeUrl = new URL(
+            "v1/storage/presign/get",
+            forgeBaseUrl + "/"
+          );
           forgeUrl.searchParams.set("path", key);
 
           const forgeResp = await fetch(forgeUrl, {
@@ -202,52 +207,84 @@ function vitePluginStorageProxy(): Plugin {
   };
 }
 
-const plugins = [react(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy()];
+/**
+ * Greffons d'atelier, chargés **uniquement en développement**.
+ *
+ * Deux raisons, découvertes en déployant.
+ *
+ * 1. **L'installation échouait.** `@builder.io/vite-plugin-jsx-loc` déclare
+ *    `vite@^4 || ^5` en dépendance de pair, alors que le projet est en Vite 7 :
+ *    `npm ci` s'arrêtait sur `ERESOLVE` et le déploiement ne démarrait jamais.
+ *    Le greffon annotait le JSX de sa position source pour un éditeur visuel dont
+ *    ce projet ne se sert pas — il a été retiré plutôt que contourné par
+ *    `--legacy-peer-deps`, qui aurait laissé le conflit intact.
+ *
+ * 2. **Le reste partait en production.** Le runtime de prévisualisation
+ *    s'injectait dans le bundle livré : capteur d'erreurs avec son interface,
+ *    gestion d'annulation-rétablissement, styles de curseur, attributs
+ *    `data-loc`. Sur une application de santé, un runtime d'atelier qui collecte
+ *    des journaux n'a rien à faire chez l'utilisateur — et il pesait sur un
+ *    bundle déjà signalé comme trop gros par Vite.
+ *
+ * `command === 'serve'` couvre `vite dev` et rien d'autre : c'est le seul moment
+ * où ces outils servent.
+ */
+export default defineConfig(({ command }) => {
+  const atelier =
+    command === "serve"
+      ? [
+          vitePluginManusRuntime(),
+          vitePluginManusDebugCollector(),
+          vitePluginStorageProxy(),
+        ]
+      : [];
 
-export default defineConfig({
-  plugins,
-  resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
-    },
-  },
-  envDir: path.resolve(import.meta.dirname),
-  root: path.resolve(import.meta.dirname, "client"),
-  build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-  },
-  server: {
-    port: 3000,
-    strictPort: false, // Will find next available port if 3000 is busy
-    host: true,
-    // Le frontend de développement est servi par Vite, l'API par Express sur un
-    // autre port. Sans ce proxy, tout appel à /api partirait vers Vite et
-    // renverrait l'index.html.
-    //
-    // Passer par le proxy garde aussi le même origine pour le navigateur : le
-    // cookie du refresh token (SameSite=Strict) est donc bien transmis, ce qui
-    // ne serait pas le cas en appelant http://localhost:8000 directement.
-    proxy: {
-      '/api': {
-        target: process.env.VITE_API_TARGET || 'http://localhost:8000',
-        changeOrigin: true,
+  return {
+    plugins: [react(), ...atelier],
+
+    resolve: {
+      alias: {
+        "@": path.resolve(import.meta.dirname, "client", "src"),
+        "@shared": path.resolve(import.meta.dirname, "shared"),
+        "@assets": path.resolve(import.meta.dirname, "attached_assets"),
       },
     },
-    allowedHosts: [
-      ".manuspre.computer",
-      ".manus.computer",
-      ".manus-asia.computer",
-      ".manuscomputer.ai",
-      ".manusvm.computer",
-      "localhost",
-      "127.0.0.1",
-    ],
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
+    envDir: path.resolve(import.meta.dirname),
+    root: path.resolve(import.meta.dirname, "client"),
+    build: {
+      outDir: path.resolve(import.meta.dirname, "dist/public"),
+      emptyOutDir: true,
     },
-  },
+    server: {
+      port: 3000,
+      strictPort: false, // Will find next available port if 3000 is busy
+      host: true,
+      // Le frontend de développement est servi par Vite, l'API par Express sur un
+      // autre port. Sans ce proxy, tout appel à /api partirait vers Vite et
+      // renverrait l'index.html.
+      //
+      // Passer par le proxy garde aussi le même origine pour le navigateur : le
+      // cookie du refresh token (SameSite=Strict) est donc bien transmis, ce qui
+      // ne serait pas le cas en appelant http://localhost:8000 directement.
+      proxy: {
+        "/api": {
+          target: process.env.VITE_API_TARGET || "http://localhost:8000",
+          changeOrigin: true,
+        },
+      },
+      allowedHosts: [
+        ".manuspre.computer",
+        ".manus.computer",
+        ".manus-asia.computer",
+        ".manuscomputer.ai",
+        ".manusvm.computer",
+        "localhost",
+        "127.0.0.1",
+      ],
+      fs: {
+        strict: true,
+        deny: ["**/.*"],
+      },
+    },
+  };
 });

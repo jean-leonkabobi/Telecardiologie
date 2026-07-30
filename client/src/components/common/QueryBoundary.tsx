@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Stack from '@mui/material/Stack';
@@ -7,6 +6,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import type { ReactNode } from 'react';
 
 import { ApiError } from '@/lib/apiClient';
+import { EmptyState } from './EmptyState';
 import { InfoPanel } from './InfoPanel';
 
 interface QueryBoundaryProps {
@@ -35,7 +35,16 @@ export function QueryBoundary({
 }: QueryBoundaryProps) {
   if (isLoading) {
     return (
-      <Stack sx={{ alignItems: 'center', py: 6 }} spacing={2}>
+      <Stack
+        spacing={2}
+        // `minHeight` réserve la place du contenu à venir. Sans elle, la page se
+        // contractait autour du seul indicateur puis se dépliait d'un coup : les
+        // boutons de l'en-tête sautaient sous le curseur au moment du clic.
+        sx={{ alignItems: 'center', justifyContent: 'center', minHeight: 320 }}
+        // Annonce l'arrivée du contenu aux lecteurs d'écran, sans interrompre.
+        aria-busy="true"
+        aria-live="polite"
+      >
         <CircularProgress aria-label="Chargement des données" />
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
           Chargement…
@@ -65,13 +74,10 @@ export function QueryBoundary({
   }
 
   if (isEmpty && emptyMessage) {
-    return (
-      <Box sx={{ py: 4, textAlign: 'center' }}>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          {emptyMessage}
-        </Typography>
-      </Box>
-    );
+    // Le même bloc que partout ailleurs dans l'application. Cet écran affichait
+    // une simple ligne de texte grise, là où les autres écrans vides présentent
+    // une icône et un titre : deux réponses différentes à la même situation.
+    return <EmptyState title="Aucune donnée" description={emptyMessage} />;
   }
 
   return <>{children}</>;

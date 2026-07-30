@@ -79,7 +79,13 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
   const [pleinEcran, setPleinEcran] = useState(false);
   const [texte, setTexte] = useState<string | null>(null);
 
-  const document = useEcgDocument(requestId, demande && rendu !== 'aucun');
+  /**
+   * Nommé `fichier` et non `document` : ce dernier est l'objet global du
+   * navigateur. Le masquer dans ce composant marcherait tant qu'on n'y touche
+   * pas, puis casserait silencieusement le jour où quelqu'un y ajoute un
+   * `document.createElement`.
+   */
+  const fichier = useEcgDocument(requestId, demande && rendu !== 'aucun');
 
   /**
    * L'objet URL est créé ici et libéré au démontage.
@@ -89,9 +95,9 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
    * rechargement de la page. Lié au composant, son cycle de vie est explicite.
    */
   const objectUrl = useMemo(() => {
-    if (!document.data || rendu === 'texte' || rendu === 'aucun') return null;
-    return URL.createObjectURL(document.data.body);
-  }, [document.data, rendu]);
+    if (!fichier.data || rendu === 'texte' || rendu === 'aucun') return null;
+    return URL.createObjectURL(fichier.data.body);
+  }, [fichier.data, rendu]);
 
   useEffect(() => {
     if (!objectUrl) return;
@@ -100,15 +106,15 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
 
   // Le texte est décodé une fois, à l'arrivée du blob.
   useEffect(() => {
-    if (rendu !== 'texte' || !document.data) return;
+    if (rendu !== 'texte' || !fichier.data) return;
     let vivant = true;
-    void document.data.body.text().then((contenu) => {
+    void fichier.data.body.text().then((contenu) => {
       if (vivant) setTexte(contenu);
     });
     return () => {
       vivant = false;
     };
-  }, [document.data, rendu]);
+  }, [fichier.data, rendu]);
 
   if (rendu === 'aucun') {
     return (
@@ -133,7 +139,7 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
     );
   }
 
-  if (document.isPending) {
+  if (fichier.isPending) {
     return (
       <Stack spacing={1}>
         <LinearProgress />
@@ -144,19 +150,19 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
     );
   }
 
-  if (document.isError) {
+  if (fichier.isError) {
     return (
       <Alert
         severity="error"
         variant="outlined"
         action={
-          <Button size="small" color="inherit" onClick={() => void document.refetch()}>
+          <Button size="small" color="inherit" onClick={() => void fichier.refetch()}>
             Réessayer
           </Button>
         }
       >
-        {document.error instanceof ApiError
-          ? document.error.message
+        {fichier.error instanceof ApiError
+          ? fichier.error.message
           : "Le document n'a pas pu être chargé."}
       </Alert>
     );

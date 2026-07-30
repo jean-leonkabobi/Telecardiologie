@@ -3,13 +3,33 @@
 
   <head>
     <meta charset="UTF-8" />
+    <!--
+      Pas de `maximum-scale` : le bloquer empêche le zoom à deux doigts, ce que
+      les règles d'accessibilité interdisent (WCAG 1.4.4). Sur une application où
+      l'on examine un tracé et où l'utilisateur peut être presbyte, c'est la
+      dernière chose à verrouiller.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Plateforme de Télécardiologie Assistée par IA</title>
     <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>Plateforme de Télécardiologie Assistée par IA</title>    
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      name="description"
+      content="Soumission, analyse assistée par IA et validation par un cardiologue de tracés électrocardiographiques." />
+
+    <!--
+      Teinte de l'interface du navigateur sur mobile, accordée au fond de
+      l'application dans chaque mode. Sans cela, la barre d'adresse reste blanche
+      au-dessus d'une application en mode sombre.
+    -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf5f5" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#110c0b" />
+
+    <!--
+      Inter est auto-hébergée (client/src/fonts.css) et non chargée depuis Google
+      Fonts : voir ce fichier pour les trois raisons — confidentialité des postes
+      soignants, fiabilité sur un réseau filtré, et graisses variables.
+    -->
+
     <!-- Logo servi depuis client/public : contrairement à /manus-storage,
          il existe aussi dans le build de production. -->
     <link rel="icon" href="/logo.svg" type="image/svg+xml" />
@@ -43,10 +63,16 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script
-      defer
-      src="%VITE_ANALYTICS_ENDPOINT%/umami"
-      data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"></script>
+    <!--
+      Le gabarit d'origine embarquait ici une balise de mesure d'audience dont
+      l'adresse venait de `%VITE_ANALYTICS_ENDPOINT%`. Ces variables n'étant pas
+      définies, le build livrait l'espace réservé tel quel : chaque chargement
+      demandait « /%VITE_ANALYTICS_ENDPOINT%/umami », recevait la page HTML de
+      repli et échouait sur une erreur de type MIME.
+
+      Retirée plutôt que réparée : dans une application de santé, un traceur tiers
+      relève d'une décision explicite — pas d'un résidu de gabarit.
+    -->
   </body>
 
 </html>

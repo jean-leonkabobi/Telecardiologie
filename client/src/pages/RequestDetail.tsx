@@ -3,20 +3,18 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
-import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
 import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DownloadIcon from '@mui/icons-material/Download';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdfOutlined';
 import GroupAddIcon from '@mui/icons-material/GroupAddOutlined';
-import { useLocation, useParams } from 'wouter';
+import { useParams } from 'wouter';
 
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { DetailItem } from '@/components/common/DetailItem';
 import { InfoPanel } from '@/components/common/InfoPanel';
+import { PageHeader } from '@/components/common/PageHeader';
 import { QueryBoundary } from '@/components/common/QueryBoundary';
 import { SectionCard } from '@/components/common/SectionCard';
 import { StatusChip } from '@/components/common/StatusChip';
@@ -30,6 +28,7 @@ import {
 import type { EcgRequestFullDetail } from '@/api/types';
 import { describeRedFlag, hasCriticalFlag } from '@/api/redFlags';
 import { EcgDocumentViewer } from '@/components/ecg/EcgDocumentViewer';
+import { EcgRecordingContext } from '@/components/ecg/EcgRecordingContext';
 import { EcgWaveformViewer } from '@/components/ecg/EcgWaveformViewer';
 import { ApiError } from '@/lib/apiClient';
 import { triggerDownload } from '@/lib/download';
@@ -62,7 +61,6 @@ const CONCLUSION_TONE = {
 } as const;
 
 function RequestView({ request }: { request: EcgRequestFullDetail }) {
-  const [, navigate] = useLocation();
   const fileUrl = useEcgFileUrl();
   const report = useEcgReport();
   const externalReview = useRequestExternalReview();
@@ -138,29 +136,20 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
 
   return (
     <Stack spacing={3}>
-      <Stack
-        direction="row"
-        spacing={2}
-        sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-      >
-        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-          <Tooltip title="Retour aux demandes">
-            <IconButton onClick={() => navigate('/my-requests')}>
-              <ArrowBackIcon />
-            </IconButton>
-          </Tooltip>
-          <Box>
-            <Typography variant="h1">{request.reference}</Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-              Créée le {new Date(request.createdAt).toLocaleString('fr-FR')}
-            </Typography>
-          </Box>
-        </Stack>
-        <Stack direction="row" spacing={1}>
-          <StatusChip status={request.priorityLabel} statusKey={request.priority} size="medium" />
-          <StatusChip status={request.statusLabel} statusKey={request.status} size="medium" />
-        </Stack>
-      </Stack>
+      {/* En-tête reconstruit à la main auparavant, alors que `PageHeader` fait
+          exactement cela partout ailleurs : deux gabarits d'en-tête pour deux
+          pages de détail, avec un alignement et un espacement qui divergeaient. */}
+      <PageHeader
+        title={request.reference}
+        subtitle={`Créée le ${new Date(request.createdAt).toLocaleString('fr-FR')}`}
+        backTo={{ href: '/my-requests', label: 'Retour à mes demandes' }}
+        action={
+          <Stack direction="row" spacing={1}>
+            <StatusChip status={request.priorityLabel} statusKey={request.priority} size="medium" />
+            <StatusChip status={request.statusLabel} statusKey={request.status} size="medium" />
+          </Stack>
+        }
+      />
 
       {analysisRunning && (
         <InfoPanel title="Analyse automatique en cours">
@@ -198,6 +187,13 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
                   />
                 </Grid>
               </Grid>
+            </SectionCard>
+
+            <SectionCard title="Conditions de l'enregistrement">
+              <EcgRecordingContext
+                indicationLabel={request.indicationLabel}
+                recording={request.recording}
+              />
             </SectionCard>
 
             <SectionCard title="Contexte clinique">
