@@ -1,0 +1,73 @@
+# Orchestrateur unique du pipeline CI/CD du frontend.
+#
+# Même principe que le backend — voir
+# telecardiologie-backend/.github/workflows/pipeline.yml pour le détail
+# complet. `frontend-ci.yml`, `security.yml`, `sonarcloud.yml`, `docker.yml`
+# et `deploy.yml` sont des workflows réutilisables sans déclencheur propre
+# (sauf `security.yml`, qui garde son `schedule` hebdomadaire) ; ce fichier
+# est le seul point d'entrée.
+
+name: Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: frontend-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/frontend-ci.yml
+    secrets: inherit
+
+  security:
+    name: Sécurité
+    uses: ./.github/workflows/security.yml
+    secrets: inherit
+
+  quality:
+    name: Qualité (SonarCloud)
+    uses: ./.github/workflows/sonarcloud.yml
+    secrets: inherit
+
+  docker:
+    name: Image Docker (Docker Hub)
+    needs: [ci, security]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/docker.yml
+    secrets: inherit
+
+  deploy:
+    name: Déploiement (Render)
+    needs: [docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+
+  summary:
+    name: Résumé du pipeline
+    if: always()
+    needs: [ci, security, quality, docker, deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publier le résumé
+        run: |
+          echo "## Résumé du pipeline — \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Étape | Résultat |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| CI | ${{ needs.ci.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Sécurité | ${{ needs.security.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Qualité (SonarCloud) | ${{ needs.quality.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image Docker | ${{ needs.docker.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Déploiement | ${{ needs.deploy.result }} |" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,35 @@
+# Qualité de code — SonarCloud. Voir
+# telecardiologie-backend/.github/workflows/sonarcloud.yml pour la logique
+# détaillée (optionnel, ignoré tant que SONAR_TOKEN n'est pas configuré).
+
+name: SonarCloud
+
+on:
+  workflow_call:
+
+jobs:
+  sonarcloud:
+    name: Analyse SonarCloud
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vérifier que SONAR_TOKEN est configuré
+        id: check
+        run: |
+          if [ -z "${{ secrets.SONAR_TOKEN }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::SONAR_TOKEN absent — analyse SonarCloud ignorée. Voir DEVOPS.md pour l'activer (facultatif)."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.configured == 'true'
+        with:
+          fetch-depth: 0
+
+      - name: Analyse SonarCloud
+        if: steps.check.outputs.configured == 'true'
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io

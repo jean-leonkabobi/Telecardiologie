@@ -1,0 +1,122 @@
+# Intégration continue du frontend (React 19 + Vite 7).
+#
+# pnpm, pas npm : `package.json` déclare `packageManager: pnpm@10.4.1` et un
+# correctif `patchedDependencies` (wouter@3.7.1) que seul pnpm applique. C'est
+# une divergence avec le `Dockerfile` du dépôt, qui utilise `npm ci` — voir
+# DEVOPS.md, section « Constat d'audit », pour le détail et le correctif
+# proposé. La CI, elle, utilise la commande réellement documentée par
+# `packageManager` et par le fichier `pnpm-lock.yaml` présent dans le dépôt.
+#
+# Constat d'audit : ni suite de tests automatisés, ni ESLint ne sont
+# configurés dans ce dépôt (aucune dépendance de test, aucun `eslint.config.*`,
+# aucun script `lint`). Conformément à la consigne « ne rien inventer », cette
+# CI ne fabrique pas de commande qui n'existe pas : elle l'indique
+# explicitement (`::warning::`) et documente la solution recommandée dans
+# DEVOPS.md plutôt que de faire semblant de tester le code.
+#
+# Workflow réutilisable (`workflow_call`), sans déclencheur propre : c'est
+# `pipeline.yml` qui l'invoque. Voir DEVOPS.md, section « Orchestration ».
+
+name: Frontend CI
+
+on:
+  workflow_call:
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  typecheck:
+    name: Vérification des types (tsc)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: tsc --noEmit
+        run: pnpm run check
+
+  format-check:
+    name: Prettier (vérification)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      # `format` (dans package.json) écrit sur disque (`prettier --write .`) :
+      # invalide pour une CI, qui ne doit rien modifier. `--check` réutilise la
+      # même configuration (.prettierrc / .prettierignore) sans rien écrire.
+      - name: Prettier --check
+        run: npx prettier --check .
+
+  no-lint-configured:
+    name: "⚠ ESLint non configuré"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Constat
+        run: |
+          echo "::warning title=ESLint absent::Aucune configuration ESLint ni dépendance eslint ne sont présentes dans ce dépôt. Aucune commande 'lint' n'existe dans package.json. Voir DEVOPS.md pour la configuration recommandée (eslint + typescript-eslint + plugin react-hooks, alignée sur celle du backend)."
+
+  no-tests-configured:
+    name: "⚠ Tests automatisés non configurés"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Constat
+        run: |
+          echo "::warning title=Tests absents::Aucun framework de test (Vitest, Jest, Testing Library...) n'est installé dans ce dépôt, et aucun fichier de test n'existe. Voir DEVOPS.md, section Limites connues, pour la solution recommandée."
+
+  build:
+    name: Build (vite build)
+    runs-on: ubuntu-latest
+    needs: [typecheck, format-check]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+        env:
+          VITE_API_BASE_URL: ""
+
+      - name: Vérifier la présence de dist/public/index.html
+        run: test -f dist/public/index.html
+
+      - name: Publier l'artefact de build
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-frontend
+          path: dist/public/
+          retention-days: 3

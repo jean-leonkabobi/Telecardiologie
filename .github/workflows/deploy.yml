@@ -1,0 +1,30 @@
+# Déploiement continu du frontend sur Render (offre gratuite).
+#
+# Workflow réutilisable, appelé par `pipeline.yml` après le succès de
+# `docker.yml`. Voir telecardiologie-backend/.github/workflows/deploy.yml
+# pour le mécanisme détaillé.
+#
+# Rappel de configuration Render pour ce service (voir DEVOPS.md) :
+# `API_UPSTREAM` doit pointer vers l'URL publique du service backend Render,
+# sans quoi nginx renvoie 502.
+
+name: Deploy (Render)
+
+on:
+  workflow_call:
+
+jobs:
+  deploy:
+    name: Déclencher le déploiement Render
+    runs-on: ubuntu-latest
+    steps:
+      - name: Appeler le Deploy Hook Render
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}" ]; then
+            echo "::error::Le secret RENDER_DEPLOY_HOOK_FRONTEND n'est pas configuré. Voir DEVOPS.md."
+            exit 1
+          fi
+          curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}"
+
+      - name: Résumé
+        run: echo "### Déploiement Render déclenché pour \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"

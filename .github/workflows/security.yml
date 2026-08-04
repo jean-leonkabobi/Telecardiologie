@@ -1,0 +1,113 @@
+# Analyse de sécurité du frontend.
+#
+# Même logique que le backend (voir telecardiologie-backend/.github/workflows/security.yml) :
+# CodeQL pour le code, npm/pnpm audit et Trivy pour les dépendances et l'image.
+# Pas de DAST ici : OWASP ZAP en mode « baseline » exigerait une instance de
+# l'application déployée et accessible publiquement en continu — hors budget
+# d'un environnement académique éphémère. Voir DEVOPS.md, section « Analyse de
+# sécurité », pour l'alternative retenue (ZAP manuel ponctuel contre
+# l'environnement Render avant la soutenance).
+
+name: Security
+
+on:
+  workflow_call:
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  codeql:
+    name: CodeQL (SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+
+  pnpm-audit:
+    name: pnpm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: pnpm audit (high et critique)
+        run: pnpm audit --audit-level high
+        continue-on-error: false
+
+  trivy-fs:
+    name: Trivy — dépendances (filesystem)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy (scan du système de fichiers)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs-results.sarif
+          category: trivy-filesystem
+
+  trivy-image:
+    name: Trivy — image Docker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construire l'image (sans publication)
+        run: docker build -t telecardio-web:scan .
+
+      - name: Trivy (scan de l'image)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: telecardio-web:scan
+          format: sarif
+          output: trivy-image-results.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image-results.sarif
+          category: trivy-image

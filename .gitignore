@@ -171,3 +171,4 @@ server/src/infrastructure/persistence/prisma/generated/
 
 # Résultats des exécutions Robot Framework
 tests/robot/results/
+DEVOPS.md
