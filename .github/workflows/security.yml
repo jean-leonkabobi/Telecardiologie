@@ -29,7 +29,7 @@ jobs:
       actions: read
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: github/codeql-action/init@v4
         with:
@@ -44,7 +44,7 @@ jobs:
     name: pnpm audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Pas de `version:` ici : `package.json` déclare déjà
       # `packageManager: pnpm@10.4.1`, que pnpm/action-setup lit tout seul.
@@ -69,7 +69,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Trivy (scan du système de fichiers)
         uses: aquasecurity/trivy-action@v0.36.0
@@ -93,7 +93,7 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Construire l'image (sans publication)
         run: docker build -t telecardio-web:scan .
