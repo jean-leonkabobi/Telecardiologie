@@ -1,12 +1,12 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import { Component, type ReactNode } from 'react';
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import { Component, type ReactNode } from "react";
 
-import { InfoPanel } from '@/components/common/InfoPanel';
+import { InfoPanel } from "@/components/common/InfoPanel";
 
 interface Props {
   children: ReactNode;
@@ -32,15 +32,15 @@ class ErrorBoundary extends Component<Props, State> {
       return (
         <Box
           sx={{
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             p: 4,
-            bgcolor: 'background.default',
+            bgcolor: "background.default",
           }}
         >
-          <Stack spacing={3} sx={{ width: '100%', maxWidth: 720 }}>
+          <Stack spacing={3} sx={{ width: "100%", maxWidth: 720 }}>
             {/*
               Écran de repli après un plantage de rendu : c'est la page
               entière, pas une notification. Une popup SweetAlert2 par-dessus
@@ -51,11 +51,19 @@ class ErrorBoundary extends Component<Props, State> {
             </InfoPanel>
 
             {this.state.error?.stack && (
-              <Paper variant="outlined" sx={{ p: 2, bgcolor: 'surfaceMuted', maxHeight: 320, overflow: 'auto' }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  bgcolor: "surfaceMuted",
+                  maxHeight: 320,
+                  overflow: "auto",
+                }}
+              >
                 <Typography
                   component="pre"
                   variant="caption"
-                  sx={{ color: 'text.secondary', whiteSpace: 'pre-wrap', m: 0 }}
+                  sx={{ color: "text.secondary", whiteSpace: "pre-wrap", m: 0 }}
                 >
                   {this.state.error.stack}
                 </Typography>
@@ -63,7 +71,11 @@ class ErrorBoundary extends Component<Props, State> {
             )}
 
             <Box>
-              <Button variant="contained" startIcon={<RefreshIcon />} onClick={() => window.location.reload()}>
+              <Button
+                variant="contained"
+                startIcon={<RefreshIcon />}
+                onClick={() => window.location.reload()}
+              >
                 Recharger la page
               </Button>
             </Box>

@@ -1,39 +1,38 @@
-import CssBaseline from '@mui/material/CssBaseline';
-import { ThemeProvider } from '@mui/material/styles';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import 'dayjs/locale/fr';
+import CssBaseline from "@mui/material/CssBaseline";
+import { ThemeProvider } from "@mui/material/styles";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import "dayjs/locale/fr";
 
-import { useEffect } from 'react';
-import { Route, Switch, useLocation } from 'wouter';
+import { useEffect } from "react";
+import { Route, Switch, useLocation } from "wouter";
 
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
+import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
 
-import ErrorBoundary from './components/ErrorBoundary';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import theme from './theme';
+import ErrorBoundary from "./components/ErrorBoundary";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import theme from "./theme";
 
-
-import NotFound from '@/pages/NotFound';
-import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import HealthcareProfessionalDashboard from './pages/HealthcareProfessionalDashboard';
-import CardiologistDashboard from './pages/CardiologistDashboard';
-import AdminDashboard from './pages/AdminDashboard';
-import NewECGRequest from './pages/NewECGRequest';
-import ECGAnalysis from './pages/ECGAnalysis';
-import RequestDetail from './pages/RequestDetail';
-import MyRequests from './pages/MyRequests';
-import NotificationsPage from './pages/NotificationsPage';
-import Availability from './pages/Availability';
-import CardiologyHistory from './pages/CardiologyHistory';
-import CardiolQueue from './pages/CardiolQueue';
-import AdminUsers from './pages/AdminUsers';
-import AdminRequests from './pages/AdminRequests';
-import AdminStatistics from './pages/AdminStatistics';
-import AdminAudit from './pages/AdminAudit';
+import NotFound from "@/pages/NotFound";
+import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import HealthcareProfessionalDashboard from "./pages/HealthcareProfessionalDashboard";
+import CardiologistDashboard from "./pages/CardiologistDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import NewECGRequest from "./pages/NewECGRequest";
+import ECGAnalysis from "./pages/ECGAnalysis";
+import RequestDetail from "./pages/RequestDetail";
+import MyRequests from "./pages/MyRequests";
+import NotificationsPage from "./pages/NotificationsPage";
+import Availability from "./pages/Availability";
+import CardiologyHistory from "./pages/CardiologyHistory";
+import CardiolQueue from "./pages/CardiolQueue";
+import AdminUsers from "./pages/AdminUsers";
+import AdminRequests from "./pages/AdminRequests";
+import AdminStatistics from "./pages/AdminStatistics";
+import AdminAudit from "./pages/AdminAudit";
 
 /**
  * Cache des données serveur.
@@ -57,11 +56,11 @@ function FullPageLoader() {
   return (
     <Box
       sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        bgcolor: 'background.default',
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        bgcolor: "background.default",
       }}
     >
       <CircularProgress aria-label="Chargement" />
@@ -82,7 +81,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isInitializing && !isAuthenticated) {
-      navigate('/login', { replace: true });
+      navigate("/login", { replace: true });
     }
   }, [isAuthenticated, isInitializing, navigate]);
 
@@ -120,11 +119,7 @@ function Router() {
 
       <Route path="/admin">
         <ProtectedRoute>
-          {user?.role === "admin" ? (
-            <AdminDashboard />
-          ) : (
-            <NotFound />
-          )}
+          {user?.role === "admin" ? <AdminDashboard /> : <NotFound />}
         </ProtectedRoute>
       </Route>
 
@@ -140,11 +135,7 @@ function Router() {
 
       <Route path="/analyze/:id">
         <ProtectedRoute>
-          {user?.role === "cardiologist" ? (
-            <ECGAnalysis />
-          ) : (
-            <NotFound />
-          )}
+          {user?.role === "cardiologist" ? <ECGAnalysis /> : <NotFound />}
         </ProtectedRoute>
       </Route>
 
@@ -180,72 +171,44 @@ function Router() {
       {/* Cardiologist Routes */}
       <Route path="/queue">
         <ProtectedRoute>
-          {user?.role === "cardiologist" ? (
-            <CardiolQueue />
-          ) : (
-            <NotFound />
-          )}
+          {user?.role === "cardiologist" ? <CardiolQueue /> : <NotFound />}
         </ProtectedRoute>
       </Route>
 
       <Route path="/availability">
         <ProtectedRoute>
-          {user?.role === "cardiologist" ? (
-            <Availability />
-          ) : (
-            <NotFound />
-          )}
+          {user?.role === "cardiologist" ? <Availability /> : <NotFound />}
         </ProtectedRoute>
       </Route>
 
       <Route path="/history">
         <ProtectedRoute>
-          {user?.role === "cardiologist" ? (
-            <CardiologyHistory />
-          ) : (
-            <NotFound />
-          )}
+          {user?.role === "cardiologist" ? <CardiologyHistory /> : <NotFound />}
         </ProtectedRoute>
       </Route>
 
       {/* Admin Routes */}
       <Route path="/admin/users">
         <ProtectedRoute>
-          {user?.role === "admin" ? (
-            <AdminUsers />
-          ) : (
-            <NotFound />
-          )}
+          {user?.role === "admin" ? <AdminUsers /> : <NotFound />}
         </ProtectedRoute>
       </Route>
 
       <Route path="/admin/requests">
         <ProtectedRoute>
-          {user?.role === "admin" ? (
-            <AdminRequests />
-          ) : (
-            <NotFound />
-          )}
+          {user?.role === "admin" ? <AdminRequests /> : <NotFound />}
         </ProtectedRoute>
       </Route>
 
       <Route path="/admin/statistics">
         <ProtectedRoute>
-          {user?.role === "admin" ? (
-            <AdminStatistics />
-          ) : (
-            <NotFound />
-          )}
+          {user?.role === "admin" ? <AdminStatistics /> : <NotFound />}
         </ProtectedRoute>
       </Route>
 
       <Route path="/admin/audit">
         <ProtectedRoute>
-          {user?.role === "admin" ? (
-            <AdminAudit />
-          ) : (
-            <NotFound />
-          )}
+          {user?.role === "admin" ? <AdminAudit /> : <NotFound />}
         </ProtectedRoute>
       </Route>
 

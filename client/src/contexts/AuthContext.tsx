@@ -6,11 +6,11 @@ import {
   useMemo,
   useState,
   type ReactNode,
-} from 'react';
-import { api, setAccessToken, setSessionExpiredHandler } from '@/lib/apiClient';
-import { notify } from '@/lib/alerts';
+} from "react";
+import { api, setAccessToken, setSessionExpiredHandler } from "@/lib/apiClient";
+import { notify } from "@/lib/alerts";
 
-export type UserRole = 'healthcare_professional' | 'cardiologist' | 'admin';
+export type UserRole = "healthcare_professional" | "cardiologist" | "admin";
 
 export interface User {
   id: string;
@@ -20,7 +20,7 @@ export interface User {
   name: string;
   role: UserRole;
   roleLabel: string;
-  status: 'PENDING_ACTIVATION' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  status: "PENDING_ACTIVATION" | "ACTIVE" | "INACTIVE" | "SUSPENDED";
   lastLoginAt: string | null;
   createdAt: string;
 }
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     (async () => {
       try {
-        const data = await api.post<LoginResponse>('/auth/refresh', undefined, {
+        const data = await api.post<LoginResponse>("/auth/refresh", undefined, {
           skipRefresh: true,
         });
         if (cancelled) return;
@@ -83,23 +83,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setSessionExpiredHandler(() => {
       setUser(null);
-      notify.warning('Session expirée', 'Veuillez vous reconnecter.');
+      notify.warning("Session expirée", "Veuillez vous reconnecter.");
     });
     return () => setSessionExpiredHandler(null);
   }, []);
 
-  const login = useCallback(async (email: string, password: string): Promise<User> => {
-    const data = await api.post<LoginResponse>('/auth/login', { email, password }, {
-      skipRefresh: true,
-    });
-    setAccessToken(data.accessToken);
-    setUser(data.user);
-    return data.user;
-  }, []);
+  const login = useCallback(
+    async (email: string, password: string): Promise<User> => {
+      const data = await api.post<LoginResponse>(
+        "/auth/login",
+        { email, password },
+        {
+          skipRefresh: true,
+        }
+      );
+      setAccessToken(data.accessToken);
+      setUser(data.user);
+      return data.user;
+    },
+    []
+  );
 
   const logout = useCallback(async (): Promise<void> => {
     try {
-      await api.post('/auth/logout');
+      await api.post("/auth/logout");
     } catch {
       // Même si l'appel échoue, la session locale doit être abandonnée.
     }
@@ -108,8 +115,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextType>(
-    () => ({ user, isAuthenticated: user !== null, isInitializing, login, logout }),
-    [user, isInitializing, login, logout],
+    () => ({
+      user,
+      isAuthenticated: user !== null,
+      isInitializing,
+      login,
+      logout,
+    }),
+    [user, isInitializing, login, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -118,7 +131,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth doit être utilisé à l'intérieur d'un <AuthProvider>");
+    throw new Error(
+      "useAuth doit être utilisé à l'intérieur d'un <AuthProvider>"
+    );
   }
   return context;
 }

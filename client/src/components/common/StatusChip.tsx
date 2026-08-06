@@ -1,9 +1,10 @@
-import Chip from '@mui/material/Chip';
-import type { ChipProps } from '@mui/material/Chip';
-import ErrorIcon from '@mui/icons-material/ErrorOutlineOutlined';
-import WarningIcon from '@mui/icons-material/WarningAmberOutlined';
+import Chip from "@mui/material/Chip";
+import type { ChipProps } from "@mui/material/Chip";
+import ErrorIcon from "@mui/icons-material/ErrorOutlineOutlined";
+import WarningIcon from "@mui/icons-material/WarningAmberOutlined";
 
-type Severity = 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info';
+type Severity =
+  "default" | "primary" | "success" | "error" | "warning" | "info";
 
 /**
  * Correspondance statut → couleur sémantique.
@@ -16,54 +17,54 @@ type Severity = 'default' | 'primary' | 'success' | 'error' | 'warning' | 'info'
  */
 const SEVERITY_BY_KEY: Record<string, Severity> = {
   // Cycle de vie d'une demande — énumération technique
-  pending_analysis: 'warning',
-  analyzing: 'info',
-  analysis_failed: 'warning',
-  pending_review: 'warning',
-  under_review: 'info',
-  validated: 'success',
-  corrected: 'info',
-  rejected: 'error',
+  pending_analysis: "warning",
+  analyzing: "info",
+  analysis_failed: "warning",
+  pending_review: "warning",
+  under_review: "info",
+  validated: "success",
+  corrected: "info",
+  rejected: "error",
   // Priorité
-  normal: 'default',
-  urgent: 'error',
+  normal: "default",
+  urgent: "error",
   // Décision de revue (mêmes clés que les statuts terminaux)
 
   // Libellés français — écrans sans énumération correspondante
-  "en attente d'analyse": 'warning',
-  'analyse ia en cours': 'info',
-  "echec de l'analyse ia": 'warning',
-  'en attente de validation': 'warning',
-  'en cours de validation': 'info',
-  'en attente': 'warning',
-  'en cours': 'info',
-  validee: 'success',
-  rejetee: 'error',
-  corrigee: 'info',
-  normale: 'default',
-  urgente: 'error',
+  "en attente d'analyse": "warning",
+  "analyse ia en cours": "info",
+  "echec de l'analyse ia": "warning",
+  "en attente de validation": "warning",
+  "en cours de validation": "info",
+  "en attente": "warning",
+  "en cours": "info",
+  validee: "success",
+  rejetee: "error",
+  corrigee: "info",
+  normale: "default",
+  urgente: "error",
   // Comptes utilisateurs
-  pending_activation: 'warning',
-  "en attente d'activation": 'warning',
-  actif: 'success',
-  active: 'success',
-  inactif: 'default',
-  inactive: 'default',
-  suspendu: 'error',
-  suspended: 'error',
+  pending_activation: "warning",
+  "en attente d'activation": "warning",
+  actif: "success",
+  active: "success",
+  inactif: "default",
+  inactive: "default",
+  suspendu: "error",
+  suspended: "error",
   // Journal d'audit
-  succes: 'success',
-  success: 'success',
-  erreur: 'error',
-  error: 'error',
-  failure: 'error',
+  succes: "success",
+  success: "success",
+  erreur: "error",
+  error: "error",
+  failure: "error",
   // Disponibilité d'un cardiologue
-  disponible: 'success',
-  available: 'success',
-  occupe: 'warning',
-  busy: 'warning',
-  absent: 'default',
-  offline: 'default',
+  disponible: "success",
+  available: "success",
+  occupe: "warning",
+  busy: "warning",
+  absent: "default",
+  offline: "default",
 };
 
 /**
@@ -74,18 +75,18 @@ const SEVERITY_BY_KEY: Record<string, Severity> = {
  */
 function normalize(value: string): string {
   return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[\u2018\u2019]/g, "'")
     .trim()
     .toLowerCase();
 }
 
 export function statusSeverity(status: string): Severity {
-  return SEVERITY_BY_KEY[normalize(status)] ?? 'default';
+  return SEVERITY_BY_KEY[normalize(status)] ?? "default";
 }
 
-interface StatusChipProps extends Omit<ChipProps, 'color' | 'label'> {
+interface StatusChipProps extends Omit<ChipProps, "color" | "label"> {
   /** Texte affiché — le libellé français fourni par le serveur. */
   status: string;
   /**
@@ -118,7 +119,7 @@ export function StatusChip({
   status,
   statusKey,
   severity,
-  variant = 'filled',
+  variant = "filled",
   ...rest
 }: StatusChipProps) {
   const color = severity ?? statusSeverity(statusKey ?? status);

@@ -1,6 +1,6 @@
-import { useColorScheme } from '@mui/material/styles';
-import useMediaQuery from '@mui/material/useMediaQuery';
-import { chartPalette } from './index';
+import { useColorScheme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { chartPalette } from "./index";
 
 /**
  * Couleurs de série des graphiques pour le mode courant.
@@ -11,9 +11,12 @@ import { chartPalette } from './index';
  */
 export function useChartPalette(): string[] {
   const { mode, systemMode } = useColorScheme();
-  const prefersDark = useMediaQuery('(prefers-color-scheme: dark)');
+  const prefersDark = useMediaQuery("(prefers-color-scheme: dark)");
 
-  const resolved = mode === 'system' || mode === undefined ? (systemMode ?? (prefersDark ? 'dark' : 'light')) : mode;
+  const resolved =
+    mode === "system" || mode === undefined
+      ? (systemMode ?? (prefersDark ? "dark" : "light"))
+      : mode;
 
   return [...chartPalette[resolved]];
 }

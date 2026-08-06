@@ -1,38 +1,38 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
-import LinearProgress from '@mui/material/LinearProgress';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import DownloadIcon from '@mui/icons-material/Download';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdfOutlined';
-import GroupAddIcon from '@mui/icons-material/GroupAddOutlined';
-import { useParams } from 'wouter';
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import Divider from "@mui/material/Divider";
+import Grid from "@mui/material/Grid";
+import LinearProgress from "@mui/material/LinearProgress";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import DownloadIcon from "@mui/icons-material/Download";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdfOutlined";
+import GroupAddIcon from "@mui/icons-material/GroupAddOutlined";
+import { useParams } from "wouter";
 
-import { DashboardLayout } from '@/components/DashboardLayout';
-import { DetailItem } from '@/components/common/DetailItem';
-import { InfoPanel } from '@/components/common/InfoPanel';
-import { PageHeader } from '@/components/common/PageHeader';
-import { QueryBoundary } from '@/components/common/QueryBoundary';
-import { SectionCard } from '@/components/common/SectionCard';
-import { StatusChip } from '@/components/common/StatusChip';
+import { DashboardLayout } from "@/components/DashboardLayout";
+import { DetailItem } from "@/components/common/DetailItem";
+import { InfoPanel } from "@/components/common/InfoPanel";
+import { PageHeader } from "@/components/common/PageHeader";
+import { QueryBoundary } from "@/components/common/QueryBoundary";
+import { SectionCard } from "@/components/common/SectionCard";
+import { StatusChip } from "@/components/common/StatusChip";
 import {
   useEcgFileUrl,
   useEcgReport,
   useEcgRequest,
   useEcgWaveform,
   useRequestExternalReview,
-} from '@/api/hooks';
-import type { EcgRequestFullDetail } from '@/api/types';
-import { describeRedFlag, hasCriticalFlag } from '@/api/redFlags';
-import { EcgDocumentViewer } from '@/components/ecg/EcgDocumentViewer';
-import { EcgRecordingContext } from '@/components/ecg/EcgRecordingContext';
-import { EcgWaveformViewer } from '@/components/ecg/EcgWaveformViewer';
-import { ApiError } from '@/lib/apiClient';
-import { triggerDownload } from '@/lib/download';
-import { notify, promptText } from '@/lib/alerts';
+} from "@/api/hooks";
+import type { EcgRequestFullDetail } from "@/api/types";
+import { describeRedFlag, hasCriticalFlag } from "@/api/redFlags";
+import { EcgDocumentViewer } from "@/components/ecg/EcgDocumentViewer";
+import { EcgRecordingContext } from "@/components/ecg/EcgRecordingContext";
+import { EcgWaveformViewer } from "@/components/ecg/EcgWaveformViewer";
+import { ApiError } from "@/lib/apiClient";
+import { triggerDownload } from "@/lib/download";
+import { notify, promptText } from "@/lib/alerts";
 
 export default function RequestDetail() {
   const params = useParams<{ id: string }>();
@@ -40,7 +40,7 @@ export default function RequestDetail() {
 
   return (
     <DashboardLayout>
-      <Box sx={{ maxWidth: 1100, mx: 'auto' }}>
+      <Box sx={{ maxWidth: 1100, mx: "auto" }}>
         <QueryBoundary
           isLoading={query.isLoading}
           error={query.error}
@@ -55,9 +55,9 @@ export default function RequestDetail() {
 
 /** Ton de l'encadré de conclusion selon la décision rendue. */
 const CONCLUSION_TONE = {
-  VALIDATED: 'success',
-  CORRECTED: 'info',
-  REJECTED: 'error',
+  VALIDATED: "success",
+  CORRECTED: "info",
+  REJECTED: "error",
 } as const;
 
 function RequestView({ request }: { request: EcgRequestFullDetail }) {
@@ -66,7 +66,8 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
   const externalReview = useRequestExternalReview();
   const waveform = useEcgWaveform(request.id);
 
-  const analysisRunning = request.status === 'PENDING_ANALYSIS' || request.status === 'ANALYZING';
+  const analysisRunning =
+    request.status === "PENDING_ANALYSIS" || request.status === "ANALYZING";
 
   /**
    * Ouvre la demande hors structure, motif à l'appui.
@@ -77,11 +78,11 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
    */
   const handleExternalReview = async () => {
     const motif = await promptText({
-      title: 'Solliciter un cardiologue externe',
+      title: "Solliciter un cardiologue externe",
       text: "Cette demande sortira du périmètre de votre structure. L'ouverture est définitive et son motif est conservé au journal d'audit.",
-      label: 'Motif de la sollicitation',
-      placeholder: 'Ex : aucun cardiologue disponible ce week-end',
-      confirmLabel: 'Ouvrir la demande',
+      label: "Motif de la sollicitation",
+      placeholder: "Ex : aucun cardiologue disponible ce week-end",
+      confirmLabel: "Ouvrir la demande",
       minLength: 10,
     });
     if (motif === null) return;
@@ -89,13 +90,13 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
     try {
       await externalReview.mutateAsync({ id: request.id, reason: motif });
       notify.success(
-        'Expertise externe sollicitée',
-        `${request.reference} est désormais visible hors de votre structure.`,
+        "Expertise externe sollicitée",
+        `${request.reference} est désormais visible hors de votre structure.`
       );
     } catch (error) {
       notify.error(
-        'Sollicitation impossible',
-        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+        "Sollicitation impossible",
+        error instanceof ApiError ? error.message : "Veuillez réessayer."
       );
     }
   };
@@ -116,8 +117,8 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (error) {
       notify.error(
-        'Compte rendu indisponible',
-        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+        "Compte rendu indisponible",
+        error instanceof ApiError ? error.message : "Veuillez réessayer."
       );
     }
   };
@@ -128,8 +129,8 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
       triggerDownload(url, fileName);
     } catch (error) {
       notify.error(
-        'Téléchargement impossible',
-        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+        "Téléchargement impossible",
+        error instanceof ApiError ? error.message : "Veuillez réessayer."
       );
     }
   };
@@ -141,12 +142,20 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
           pages de détail, avec un alignement et un espacement qui divergeaient. */}
       <PageHeader
         title={request.reference}
-        subtitle={`Créée le ${new Date(request.createdAt).toLocaleString('fr-FR')}`}
-        backTo={{ href: '/my-requests', label: 'Retour à mes demandes' }}
+        subtitle={`Créée le ${new Date(request.createdAt).toLocaleString("fr-FR")}`}
+        backTo={{ href: "/my-requests", label: "Retour à mes demandes" }}
         action={
           <Stack direction="row" spacing={1}>
-            <StatusChip status={request.priorityLabel} statusKey={request.priority} size="medium" />
-            <StatusChip status={request.statusLabel} statusKey={request.status} size="medium" />
+            <StatusChip
+              status={request.priorityLabel}
+              statusKey={request.priority}
+              size="medium"
+            />
+            <StatusChip
+              status={request.statusLabel}
+              statusKey={request.status}
+              size="medium"
+            />
           </Stack>
         }
       />
@@ -155,8 +164,9 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
         <InfoPanel title="Analyse automatique en cours">
           <Stack spacing={1.5} sx={{ mt: 1 }}>
             <Typography variant="body2">
-              Le tracé est en cours de traitement. Cette page se met à jour toute seule, puis la
-              demande entrera dans la file d'un cardiologue.
+              Le tracé est en cours de traitement. Cette page se met à jour
+              toute seule, puis la demande entrera dans la file d'un
+              cardiologue.
             </Typography>
             <LinearProgress />
           </Stack>
@@ -172,18 +182,29 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
                   <DetailItem label="Nom" value={request.patient.fullName} />
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <DetailItem label="Âge" value={`${request.patient.age} ans`} />
+                  <DetailItem
+                    label="Âge"
+                    value={`${request.patient.age} ans`}
+                  />
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <DetailItem label="Identifiant" value={request.patient.reference} />
+                  <DetailItem
+                    label="Identifiant"
+                    value={request.patient.reference}
+                  />
                 </Grid>
                 <Grid size={{ xs: 6 }}>
-                  <DetailItem label="Sexe" value={request.patient.genderLabel} />
+                  <DetailItem
+                    label="Sexe"
+                    value={request.patient.genderLabel}
+                  />
                 </Grid>
                 <Grid size={{ xs: 6 }}>
                   <DetailItem
                     label="Date de naissance"
-                    value={new Date(request.patient.birthDate).toLocaleDateString('fr-FR')}
+                    value={new Date(
+                      request.patient.birthDate
+                    ).toLocaleDateString("fr-FR")}
                   />
                 </Grid>
               </Grid>
@@ -199,9 +220,18 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
             <SectionCard title="Contexte clinique">
               <Stack spacing={2}>
                 <DetailItem label="Symptômes" value={request.symptoms} />
-                <DetailItem label="Contexte" value={request.clinicalContext ?? '—'} />
-                <DetailItem label="Antécédents" value={request.medicalHistory ?? '—'} />
-                <DetailItem label="Commentaires" value={request.additionalComments ?? '—'} />
+                <DetailItem
+                  label="Contexte"
+                  value={request.clinicalContext ?? "—"}
+                />
+                <DetailItem
+                  label="Antécédents"
+                  value={request.medicalHistory ?? "—"}
+                />
+                <DetailItem
+                  label="Commentaires"
+                  value={request.additionalComments ?? "—"}
+                />
               </Stack>
             </SectionCard>
 
@@ -213,7 +243,11 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
                 {waveform.data?.waveform ? (
                   <EcgWaveformViewer waveform={waveform.data.waveform} />
                 ) : (
-                  <EcgDocumentViewer requestId={request.id} file={request.file} hauteur={520} />
+                  <EcgDocumentViewer
+                    requestId={request.id}
+                    file={request.file}
+                    hauteur={520}
+                  />
                 )}
               </Stack>
             </SectionCard>
@@ -223,22 +257,31 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
                 {request.openToExternalReview ? (
                   <Stack spacing={1}>
                     <Typography variant="body2">
-                      Cette demande est ouverte aux cardiologues hors de votre structure
-                      depuis le{' '}
+                      Cette demande est ouverte aux cardiologues hors de votre
+                      structure depuis le{" "}
                       {request.externalReviewRequestedAt !== null &&
-                        new Date(request.externalReviewRequestedAt).toLocaleString('fr-FR')}
+                        new Date(
+                          request.externalReviewRequestedAt
+                        ).toLocaleString("fr-FR")}
                       .
                     </Typography>
                     {request.externalReviewReason !== null && (
-                      <DetailItem label="Motif" value={request.externalReviewReason} />
+                      <DetailItem
+                        label="Motif"
+                        value={request.externalReviewReason}
+                      />
                     )}
                   </Stack>
                 ) : (
-                  <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      Si aucun cardiologue de votre structure n'est disponible, vous pouvez
-                      ouvrir cette demande à un confrère extérieur. L'ouverture est
-                      définitive et son motif est conservé au journal.
+                  <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "text.secondary" }}
+                    >
+                      Si aucun cardiologue de votre structure n'est disponible,
+                      vous pouvez ouvrir cette demande à un confrère extérieur.
+                      L'ouverture est définitive et son motif est conservé au
+                      journal.
                     </Typography>
                     <Button
                       variant="outlined"
@@ -255,15 +298,15 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
 
             <SectionCard title="Résultat final">
               {request.reviewedAt === null ? (
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   Aucun cardiologue n'a encore rendu de conclusion.
                   {request.assignedToName !== null &&
                     ` La demande est prise en charge par ${request.assignedToName}.`}
                 </Typography>
               ) : (
                 <InfoPanel
-                  tone={CONCLUSION_TONE[request.reviewDecision ?? 'VALIDATED']}
-                  title={request.reviewDecisionLabel ?? 'Conclusion'}
+                  tone={CONCLUSION_TONE[request.reviewDecision ?? "VALIDATED"]}
+                  title={request.reviewDecisionLabel ?? "Conclusion"}
                   hideIcon
                 >
                   <Stack spacing={1} sx={{ mt: 1 }}>
@@ -278,9 +321,12 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
                         {request.reviewComment}
                       </Typography>
                     )}
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                      Par {request.reviewedByName ?? '—'} le{' '}
-                      {new Date(request.reviewedAt).toLocaleString('fr-FR')}
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "text.secondary" }}
+                    >
+                      Par {request.reviewedByName ?? "—"} le{" "}
+                      {new Date(request.reviewedAt).toLocaleString("fr-FR")}
                     </Typography>
                   </Stack>
                 </InfoPanel>
@@ -293,28 +339,35 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
           <Stack spacing={3}>
             {request.analysis && request.analysis.redFlags.length > 0 && (
               <InfoPanel
-                tone={hasCriticalFlag(request.analysis.redFlags) ? 'error' : 'warning'}
+                tone={
+                  hasCriticalFlag(request.analysis.redFlags)
+                    ? "error"
+                    : "warning"
+                }
                 title={
                   hasCriticalFlag(request.analysis.redFlags)
-                    ? 'Signes d’alarme — priorité relevée en urgence'
-                    : 'Points de vigilance'
+                    ? "Signes d’alarme — priorité relevée en urgence"
+                    : "Points de vigilance"
                 }
               >
                 <Stack spacing={1} sx={{ mt: 1 }}>
-                  {request.analysis.redFlags.map((code) => {
+                  {request.analysis.redFlags.map(code => {
                     const flag = describeRedFlag(code);
                     return (
                       <Chip
                         key={code}
                         label={flag.label}
                         size="small"
-                        color={flag.severity === 'critical' ? 'error' : 'warning'}
-                        sx={{ alignSelf: 'flex-start' }}
+                        color={
+                          flag.severity === "critical" ? "error" : "warning"
+                        }
+                        sx={{ alignSelf: "flex-start" }}
                       />
                     );
                   })}
                   <Typography variant="caption">
-                    Détectés par des seuils cliniques. Un cardiologue reste seul à conclure.
+                    Détectés par des seuils cliniques. Un cardiologue reste seul
+                    à conclure.
                   </Typography>
                 </Stack>
               </InfoPanel>
@@ -322,37 +375,61 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
 
             <SectionCard title="Analyse IA">
               {request.analysis === null ? (
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   {analysisRunning
-                    ? 'Analyse en cours…'
+                    ? "Analyse en cours…"
                     : (request.analysisFailureReason ??
                       "L'analyse automatique n'a pas abouti. Le cardiologue lit le tracé directement.")}
                 </Typography>
               ) : (
                 <Stack spacing={2}>
                   {!request.analysis.measuredSignal && (
-                    <Typography variant="caption" sx={{ color: 'warning.main' }}>
-                      Le tracé n'a pas pu être lu automatiquement : cet avis ne remplace pas la
-                      lecture du cardiologue.
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "warning.main" }}
+                    >
+                      Le tracé n'a pas pu être lu automatiquement : cet avis ne
+                      remplace pas la lecture du cardiologue.
                     </Typography>
                   )}
-                  <DetailItem label="Rythme" value={request.analysis.rhythmLabel} />
-                  <DetailItem label="Fréquence" value={request.analysis.heartRateLabel} />
                   <DetailItem
-                    label={request.analysis.measuredSignal ? 'Anomalies' : 'Points à vérifier'}
+                    label="Rythme"
+                    value={request.analysis.rhythmLabel}
+                  />
+                  <DetailItem
+                    label="Fréquence"
+                    value={request.analysis.heartRateLabel}
+                  />
+                  <DetailItem
+                    label={
+                      request.analysis.measuredSignal
+                        ? "Anomalies"
+                        : "Points à vérifier"
+                    }
                     value={
                       request.analysis.anomalies.length === 0 ? (
-                        'Aucune anomalie significative détectée'
+                        "Aucune anomalie significative détectée"
                       ) : (
-                        <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-                          {request.analysis.anomalies.map((anomaly) => (
-                            <Chip key={anomaly} label={anomaly} size="small" color="warning" />
+                        <Stack
+                          direction="row"
+                          sx={{ flexWrap: "wrap", gap: 0.5 }}
+                        >
+                          {request.analysis.anomalies.map(anomaly => (
+                            <Chip
+                              key={anomaly}
+                              label={anomaly}
+                              size="small"
+                              color="warning"
+                            />
                           ))}
                         </Stack>
                       )
                     }
                   />
-                  <DetailItem label="Confiance" value={request.analysis.confidenceLabel} />
+                  <DetailItem
+                    label="Confiance"
+                    value={request.analysis.confidenceLabel}
+                  />
                 </Stack>
               )}
             </SectionCard>
@@ -364,10 +441,19 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
               */}
               <Stack spacing={0}>
                 {request.timeline.map((item, idx) => (
-                  <Stack key={`${item.at}-${item.event}`} direction="row" spacing={2}>
-                    <Stack sx={{ alignItems: 'center', pt: 0.75 }}>
+                  <Stack
+                    key={`${item.at}-${item.event}`}
+                    direction="row"
+                    spacing={2}
+                  >
+                    <Stack sx={{ alignItems: "center", pt: 0.75 }}>
                       <Box
-                        sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'primary.main' }}
+                        sx={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          bgcolor: "primary.main",
+                        }}
                       />
                       {idx < request.timeline.length - 1 && (
                         <Divider
@@ -378,13 +464,19 @@ function RequestView({ request }: { request: EcgRequestFullDetail }) {
                       )}
                     </Stack>
                     <Box sx={{ pb: idx < request.timeline.length - 1 ? 2 : 0 }}>
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        {new Date(item.at).toLocaleString('fr-FR')}
+                      <Typography
+                        variant="caption"
+                        sx={{ color: "text.secondary" }}
+                      >
+                        {new Date(item.at).toLocaleString("fr-FR")}
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>
                         {item.event}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: "text.secondary" }}
+                      >
                         {item.actor}
                       </Typography>
                     </Box>

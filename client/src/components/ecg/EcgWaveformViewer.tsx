@@ -1,14 +1,14 @@
-import Box from '@mui/material/Box';
-import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
-import { useTheme } from '@mui/material/styles';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import Stack from "@mui/material/Stack";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { useTheme } from "@mui/material/styles";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { EcgWaveform } from '@/api/types';
+import type { EcgWaveform } from "@/api/types";
 
 /**
  * Vitesses et gains normalisés d'un électrocardiographe.
@@ -36,7 +36,7 @@ const HAUTEUR_PISTE_MM = 30;
 
 const GOUTTIERE_MM = 14;
 
-const RHYTHM_LEAD = 'II';
+const RHYTHM_LEAD = "II";
 
 interface Mesure {
   /** Position en secondes depuis le début de la piste, et amplitude en mV. */
@@ -73,8 +73,8 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
   const [mesure, setMesure] = useState<Mesure | null>(null);
 
   const parNom = useMemo(
-    () => new Map(waveform.leads.map((l) => [l.name, l.samples])),
-    [waveform.leads],
+    () => new Map(waveform.leads.map(l => [l.name, l.samples])),
+    [waveform.leads]
   );
 
   /**
@@ -85,11 +85,14 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
    * compte rendu PDF. La recopier ici aurait garanti la divergence.
    */
   const lignes = useMemo(
-    () => (waveform.layout.length > 0 ? waveform.layout : waveform.leads.map((l) => [l.name])),
-    [waveform.layout, waveform.leads],
+    () =>
+      waveform.layout.length > 0
+        ? waveform.layout
+        : waveform.leads.map(l => [l.name]),
+    [waveform.layout, waveform.leads]
   );
 
-  const colonnes = Math.max(...lignes.map((l) => l.length));
+  const colonnes = Math.max(...lignes.map(l => l.length));
   const secondesParPiste = waveform.durationSeconds / colonnes;
 
   const pxParSeconde = speed * PX_PER_MM;
@@ -101,14 +104,16 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
   // disposition d'une seule colonne, chaque piste couvre déjà toute la durée.
   const avecBandeRythme = colonnes > 1 && parNom.has(RHYTHM_LEAD);
 
-  const largeur = Math.ceil(gouttiere + secondesParPiste * colonnes * pxParSeconde);
+  const largeur = Math.ceil(
+    gouttiere + secondesParPiste * colonnes * pxParSeconde
+  );
   const hauteur = hauteurPiste * (lignes.length + (avecBandeRythme ? 1 : 0));
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const contexte = canvas.getContext('2d');
+    const contexte = canvas.getContext("2d");
     if (!contexte) return;
 
     // Rendu à la densité réelle de l'écran : sans cela le tracé paraît flou sur
@@ -122,11 +127,11 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
       // Fond blanc dans les deux modes : un tracé se lit sur papier clair, et
       // c'est ainsi qu'il sera imprimé. L'inverser changerait la perception des
       // amplitudes.
-      fond: '#ffffff',
-      grilleFine: 'rgba(181,30,38,0.14)',
-      grilleForte: 'rgba(181,30,38,0.32)',
-      trace: '#1b1414',
-      libelle: '#6c6060',
+      fond: "#ffffff",
+      grilleFine: "rgba(181,30,38,0.14)",
+      grilleForte: "rgba(181,30,38,0.32)",
+      trace: "#1b1414",
+      libelle: "#6c6060",
       curseur: theme.palette.primary.main,
       mesure: theme.palette.info.main,
     };
@@ -143,18 +148,21 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
 
       ligne.forEach((nom, indexColonne) => {
         const samples = parNom.get(nom);
-        const decalageX = gouttiere + indexColonne * secondesParPiste * pxParSeconde;
+        const decalageX =
+          gouttiere + indexColonne * secondesParPiste * pxParSeconde;
 
         contexte.fillStyle = couleurs.libelle;
-        contexte.font = '600 11px ui-monospace, monospace';
+        contexte.font = "600 11px ui-monospace, monospace";
         contexte.fillText(nom, decalageX + 4, hautPiste + 14);
 
         if (!samples) return;
 
-        const debut = Math.round(indexColonne * secondesParPiste * waveform.samplingHz);
+        const debut = Math.round(
+          indexColonne * secondesParPiste * waveform.samplingHz
+        );
         const fin = Math.min(
           samples.length,
-          debut + Math.round(secondesParPiste * waveform.samplingHz),
+          debut + Math.round(secondesParPiste * waveform.samplingHz)
         );
 
         /**
@@ -187,11 +195,20 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
       const hautPiste = hauteurPiste * lignes.length;
       const baseRythme = hautPiste + hauteurPiste / 2;
 
-      etalonner(contexte, { x: 4, baseY: baseRythme, pxParMv, couleur: couleurs.trace });
+      etalonner(contexte, {
+        x: 4,
+        baseY: baseRythme,
+        pxParMv,
+        couleur: couleurs.trace,
+      });
 
       contexte.fillStyle = couleurs.libelle;
-      contexte.font = '600 11px ui-monospace, monospace';
-      contexte.fillText(`${RHYTHM_LEAD} — bande de rythme`, gouttiere + 4, hautPiste + 14);
+      contexte.font = "600 11px ui-monospace, monospace";
+      contexte.fillText(
+        `${RHYTHM_LEAD} — bande de rythme`,
+        gouttiere + 4,
+        hautPiste + 14
+      );
 
       contexte.save();
       contexte.beginPath();
@@ -223,7 +240,7 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
       const x0 = gouttiere + mesure.t0 * pxParSeconde;
       const x1 = gouttiere + mesure.t1 * pxParSeconde;
 
-      contexte.fillStyle = 'rgba(39,124,153,0.12)';
+      contexte.fillStyle = "rgba(39,124,153,0.12)";
       contexte.fillRect(Math.min(x0, x1), 0, Math.abs(x1 - x0), hauteur);
 
       contexte.strokeStyle = couleurs.mesure;
@@ -261,7 +278,11 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const dansLaPiste = ((y % hauteurPiste) - hauteurPiste / 2) / pxParMv;
-    return { x, t: Math.max(0, (x - gouttiere) / pxParSeconde), v: -dansLaPiste };
+    return {
+      x,
+      t: Math.max(0, (x - gouttiere) / pxParSeconde),
+      v: -dansLaPiste,
+    };
   };
 
   const deltaT = mesure ? Math.abs(mesure.t1 - mesure.t0) : 0;
@@ -269,18 +290,24 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
 
   return (
     <Stack spacing={1.5}>
-      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
+      <Stack
+        direction="row"
+        spacing={1.5}
+        sx={{ alignItems: "flex-end", flexWrap: "wrap", gap: 1 }}
+      >
         <Stack spacing={0.25}>
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
             Vitesse
           </Typography>
           <ToggleButtonGroup
             size="small"
             exclusive
             value={speed}
-            onChange={(_e, valeur) => valeur !== null && setSpeed(valeur as number)}
+            onChange={(_e, valeur) =>
+              valeur !== null && setSpeed(valeur as number)
+            }
           >
-            {SPEEDS.map((v) => (
+            {SPEEDS.map(v => (
               <ToggleButton key={v} value={v} sx={{ px: 1.25 }}>
                 {v} mm/s
               </ToggleButton>
@@ -289,16 +316,18 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
         </Stack>
 
         <Stack spacing={0.25}>
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
             Gain
           </Typography>
           <ToggleButtonGroup
             size="small"
             exclusive
             value={gain}
-            onChange={(_e, valeur) => valeur !== null && setGain(valeur as number)}
+            onChange={(_e, valeur) =>
+              valeur !== null && setGain(valeur as number)
+            }
           >
-            {GAINS.map((g) => (
+            {GAINS.map(g => (
               <ToggleButton key={g} value={g} sx={{ px: 1.25 }}>
                 {g} mm/mV
               </ToggleButton>
@@ -308,16 +337,28 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
 
         <Box sx={{ flexGrow: 1 }} />
 
-        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+        <Stack
+          direction="row"
+          spacing={0.75}
+          sx={{ alignItems: "center", flexWrap: "wrap" }}
+        >
           <Chip label={waveform.sourceFormat} size="small" variant="outlined" />
-          <Chip label={`${waveform.samplingHz} Hz`} size="small" variant="outlined" />
-          <Chip label={`${waveform.durationSeconds} s`} size="small" variant="outlined" />
+          <Chip
+            label={`${waveform.samplingHz} Hz`}
+            size="small"
+            variant="outlined"
+          />
+          <Chip
+            label={`${waveform.durationSeconds} s`}
+            size="small"
+            variant="outlined"
+          />
           <Tooltip title={`${waveform.leads.length} dérivation(s) décodée(s)`}>
             <Chip
               label={`${waveform.leads.length} dériv.`}
               size="small"
               variant="outlined"
-              color={waveform.leads.length >= 12 ? 'default' : 'warning'}
+              color={waveform.leads.length >= 12 ? "default" : "warning"}
             />
           </Tooltip>
           {waveform.estimatedHeartRateBpm !== null && (
@@ -331,22 +372,22 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
       </Stack>
 
       {/**
-        * Défilement horizontal, jamais de compression.
-        *
-        * `width: max-content` sur le canvas le laisse occuper la largeur exacte
-        * que l'échelle impose. Un `width: 100%` — ce qui était fait — étirait ou
-        * écrasait l'image : les carreaux ne valaient plus 0,2 s, et toute mesure
-        * prise à l'écran devenait fausse sans que rien ne l'indique.
-        */}
+       * Défilement horizontal, jamais de compression.
+       *
+       * `width: max-content` sur le canvas le laisse occuper la largeur exacte
+       * que l'échelle impose. Un `width: 100%` — ce qui était fait — étirait ou
+       * écrasait l'image : les carreaux ne valaient plus 0,2 s, et toute mesure
+       * prise à l'écran devenait fausse sans que rien ne l'indique.
+       */}
       <Box
         sx={{
           border: 1,
-          borderColor: 'divider',
+          borderColor: "divider",
           borderRadius: 1.5,
-          overflowX: 'auto',
-          overflowY: 'hidden',
+          overflowX: "auto",
+          overflowY: "hidden",
           lineHeight: 0,
-          bgcolor: '#ffffff',
+          bgcolor: "#ffffff",
         }}
       >
         <canvas
@@ -354,21 +395,21 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
           style={{
             width: largeur,
             height: hauteur,
-            maxWidth: 'none',
-            display: 'block',
-            cursor: 'crosshair',
+            maxWidth: "none",
+            display: "block",
+            cursor: "crosshair",
           }}
-          onMouseDown={(e) => {
+          onMouseDown={e => {
             const { t, v } = versSignal(e);
             setMesure({ t0: t, v0: v, t1: t, v1: v, enCours: true });
           }}
-          onMouseMove={(e) => {
+          onMouseMove={e => {
             const { x, t, v } = versSignal(e);
             setCurseur({ x, t });
-            setMesure((m) => (m?.enCours ? { ...m, t1: t, v1: v } : m));
+            setMesure(m => (m?.enCours ? { ...m, t1: t, v1: v } : m));
           }}
           onMouseUp={() =>
-            setMesure((m) => {
+            setMesure(m => {
               if (!m) return null;
               // Un simple clic, sans glissement : c'est une demande d'effacement,
               // pas une mesure de zéro seconde.
@@ -378,31 +419,41 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
           }
           onMouseLeave={() => {
             setCurseur(null);
-            setMesure((m) => (m?.enCours ? null : m));
+            setMesure(m => (m?.enCours ? null : m));
           }}
         />
       </Box>
 
-      <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          Un grand carreau = <strong>{(5 / speed).toFixed(2).replace('.', ',')} s</strong> ·{' '}
-          <strong>{(5 / gain).toFixed(2).replace('.', ',')} mV</strong>
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{ flexWrap: "wrap", alignItems: "center" }}
+      >
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+          Un grand carreau ={" "}
+          <strong>{(5 / speed).toFixed(2).replace(".", ",")} s</strong> ·{" "}
+          <strong>{(5 / gain).toFixed(2).replace(".", ",")} mV</strong>
         </Typography>
 
         {mesure && !mesure.enCours ? (
-          <Typography variant="caption" sx={{ color: 'info.main', fontWeight: 600 }}>
-            Compas : {Math.round(deltaT * 1000)} ms · {deltaV.toFixed(2).replace('.', ',')} mV
-            {deltaT > 0.2 && ` · ${Math.round(60 / deltaT)} bpm si intervalle R-R`}
+          <Typography
+            variant="caption"
+            sx={{ color: "info.main", fontWeight: 600 }}
+          >
+            Compas : {Math.round(deltaT * 1000)} ms ·{" "}
+            {deltaV.toFixed(2).replace(".", ",")} mV
+            {deltaT > 0.2 &&
+              ` · ${Math.round(60 / deltaT)} bpm si intervalle R-R`}
           </Typography>
         ) : (
-          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+          <Typography variant="caption" sx={{ color: "text.disabled" }}>
             Glissez sur le tracé pour mesurer un intervalle
           </Typography>
         )}
 
         {curseur && !mesure && (
-          <Typography variant="caption" sx={{ color: 'primary.main' }}>
-            {curseur.t.toFixed(2).replace('.', ',')} s
+          <Typography variant="caption" sx={{ color: "primary.main" }}>
+            {curseur.t.toFixed(2).replace(".", ",")} s
           </Typography>
         )}
       </Stack>
@@ -420,7 +471,7 @@ export function EcgWaveformViewer({ waveform }: EcgWaveformViewerProps) {
  */
 function etalonner(
   contexte: CanvasRenderingContext2D,
-  options: { x: number; baseY: number; pxParMv: number; couleur: string },
+  options: { x: number; baseY: number; pxParMv: number; couleur: string }
 ): void {
   const { x, baseY, pxParMv, couleur } = options;
   const hauteur1mV = pxParMv;
@@ -428,7 +479,7 @@ function etalonner(
 
   contexte.strokeStyle = couleur;
   contexte.lineWidth = 1.4;
-  contexte.lineJoin = 'miter';
+  contexte.lineJoin = "miter";
   contexte.beginPath();
   contexte.moveTo(x, baseY);
   contexte.lineTo(x + 2, baseY);
@@ -444,7 +495,7 @@ function dessinerGrille(
   contexte: CanvasRenderingContext2D,
   largeur: number,
   hauteur: number,
-  couleurs: { grilleFine: string; grilleForte: string },
+  couleurs: { grilleFine: string; grilleForte: string }
 ): void {
   const pas = PX_PER_MM;
 
@@ -488,14 +539,15 @@ function tracerSegment(
     pxParMv: number;
     samplingHz: number;
     couleur: string;
-  },
+  }
 ): void {
-  const { decalageX, baseY, pxParSeconde, pxParMv, samplingHz, couleur } = options;
+  const { decalageX, baseY, pxParSeconde, pxParMv, samplingHz, couleur } =
+    options;
   const parPixel = Math.max(1, Math.floor(samplingHz / pxParSeconde));
 
   contexte.strokeStyle = couleur;
   contexte.lineWidth = 1.4;
-  contexte.lineJoin = 'round';
+  contexte.lineJoin = "round";
   contexte.beginPath();
 
   let premier = true;

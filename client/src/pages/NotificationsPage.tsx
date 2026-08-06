@@ -1,39 +1,39 @@
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import IconButton from '@mui/material/IconButton';
-import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlined';
-import DeleteIcon from '@mui/icons-material/DeleteOutlined';
-import EditNoteIcon from '@mui/icons-material/EditNote';
-import ErrorIcon from '@mui/icons-material/ErrorOutlined';
-import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedInOutlined';
-import GroupAddIcon from '@mui/icons-material/GroupAddOutlined';
-import NotificationsIcon from '@mui/icons-material/NotificationsNoneOutlined';
-import WarningIcon from '@mui/icons-material/WarningAmberOutlined';
-import { useLocation } from 'wouter';
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import CheckCircleIcon from "@mui/icons-material/CheckCircleOutlined";
+import DeleteIcon from "@mui/icons-material/DeleteOutlined";
+import EditNoteIcon from "@mui/icons-material/EditNote";
+import ErrorIcon from "@mui/icons-material/ErrorOutlined";
+import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
+import GroupAddIcon from "@mui/icons-material/GroupAddOutlined";
+import NotificationsIcon from "@mui/icons-material/NotificationsNoneOutlined";
+import WarningIcon from "@mui/icons-material/WarningAmberOutlined";
+import { useLocation } from "wouter";
 
-import { DashboardLayout } from '@/components/DashboardLayout';
-import { EmptyState } from '@/components/common/EmptyState';
-import { PageHeader } from '@/components/common/PageHeader';
-import { QueryBoundary } from '@/components/common/QueryBoundary';
+import { DashboardLayout } from "@/components/DashboardLayout";
+import { EmptyState } from "@/components/common/EmptyState";
+import { PageHeader } from "@/components/common/PageHeader";
+import { QueryBoundary } from "@/components/common/QueryBoundary";
 import {
   useDeleteNotification,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotifications,
-} from '@/api/hooks';
-import type { AppNotification } from '@/api/types';
-import { useAuth } from '@/contexts/AuthContext';
-import { ApiError } from '@/lib/apiClient';
-import { confirm, notify } from '@/lib/alerts';
+} from "@/api/hooks";
+import type { AppNotification } from "@/api/types";
+import { useAuth } from "@/contexts/AuthContext";
+import { ApiError } from "@/lib/apiClient";
+import { confirm, notify } from "@/lib/alerts";
 
-type Tone = 'success' | 'info' | 'error' | 'warning' | 'primary';
+type Tone = "success" | "info" | "error" | "warning" | "primary";
 
 /**
  * Icône et couleur par type de notification.
@@ -43,24 +43,27 @@ type Tone = 'success' | 'info' | 'error' | 'warning' | 'primary';
  * que de faire planter le rendu.
  */
 const TYPE_STYLE: Record<string, { icon: React.ReactNode; color: Tone }> = {
-  REQUEST_SUBMITTED: { icon: <NotificationsIcon />, color: 'info' },
-  URGENT_REQUEST_QUEUED: { icon: <ErrorIcon />, color: 'error' },
-  ANALYSIS_COMPLETED: { icon: <AccessTimeIcon />, color: 'info' },
-  ANALYSIS_FAILED: { icon: <WarningIcon />, color: 'warning' },
-  REQUEST_CLAIMED: { icon: <AccessTimeIcon />, color: 'primary' },
-  REQUEST_VALIDATED: { icon: <CheckCircleIcon />, color: 'success' },
-  REQUEST_CORRECTED: { icon: <EditNoteIcon />, color: 'info' },
-  REQUEST_REJECTED: { icon: <ErrorIcon />, color: 'error' },
-  EXTERNAL_REVIEW_REQUESTED: { icon: <GroupAddIcon />, color: 'primary' },
+  REQUEST_SUBMITTED: { icon: <NotificationsIcon />, color: "info" },
+  URGENT_REQUEST_QUEUED: { icon: <ErrorIcon />, color: "error" },
+  ANALYSIS_COMPLETED: { icon: <AccessTimeIcon />, color: "info" },
+  ANALYSIS_FAILED: { icon: <WarningIcon />, color: "warning" },
+  REQUEST_CLAIMED: { icon: <AccessTimeIcon />, color: "primary" },
+  REQUEST_VALIDATED: { icon: <CheckCircleIcon />, color: "success" },
+  REQUEST_CORRECTED: { icon: <EditNoteIcon />, color: "info" },
+  REQUEST_REJECTED: { icon: <ErrorIcon />, color: "error" },
+  EXTERNAL_REVIEW_REQUESTED: { icon: <GroupAddIcon />, color: "primary" },
   // Invitation à valider : le cas ordinaire, en information. La relance porte le
   // même type — c'est le texte du message qui dit qu'il s'agit d'un rappel.
-  REVIEW_REQUESTED: { icon: <AssignmentTurnedInIcon />, color: 'info' },
+  REVIEW_REQUESTED: { icon: <AssignmentTurnedInIcon />, color: "info" },
   // Personne n'a pris la demande : c'est un avertissement pour le demandeur, qui
   // doit alors agir par un autre canal.
-  REVIEW_UNCLAIMED: { icon: <WarningIcon />, color: 'warning' },
+  REVIEW_UNCLAIMED: { icon: <WarningIcon />, color: "warning" },
 };
 
-const FALLBACK_STYLE = { icon: <NotificationsIcon />, color: 'primary' as Tone };
+const FALLBACK_STYLE = {
+  icon: <NotificationsIcon />,
+  color: "primary" as Tone,
+};
 
 export default function NotificationsPage() {
   const { user } = useAuth();
@@ -79,7 +82,7 @@ export default function NotificationsPage() {
   const targetFor = (n: AppNotification): string | null =>
     n.requestId === null
       ? null
-      : user?.role === 'cardiologist'
+      : user?.role === "cardiologist"
         ? `/analyze/${n.requestId}`
         : `/request/${n.requestId}`;
 
@@ -91,19 +94,19 @@ export default function NotificationsPage() {
 
   const handleDelete = async (n: AppNotification) => {
     const confirmed = await confirm({
-      title: 'Supprimer cette notification ?',
-      text: 'Elle disparaîtra définitivement de votre liste.',
-      tone: 'danger',
+      title: "Supprimer cette notification ?",
+      text: "Elle disparaîtra définitivement de votre liste.",
+      tone: "danger",
     });
     if (!confirmed) return;
 
     try {
       await remove.mutateAsync(n.id);
-      notify.info('Notification supprimée');
+      notify.info("Notification supprimée");
     } catch (error) {
       notify.error(
-        'Suppression impossible',
-        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+        "Suppression impossible",
+        error instanceof ApiError ? error.message : "Veuillez réessayer."
       );
     }
   };
@@ -112,27 +115,27 @@ export default function NotificationsPage() {
     try {
       const { updated } = await markAllRead.mutateAsync();
       notify.success(
-        'Notifications lues',
-        `${updated} notification${updated > 1 ? 's ont' : ' a'} été marquée${updated > 1 ? 's' : ''} comme lue${updated > 1 ? 's' : ''}.`,
+        "Notifications lues",
+        `${updated} notification${updated > 1 ? "s ont" : " a"} été marquée${updated > 1 ? "s" : ""} comme lue${updated > 1 ? "s" : ""}.`
       );
     } catch (error) {
       notify.error(
-        'Opération impossible',
-        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+        "Opération impossible",
+        error instanceof ApiError ? error.message : "Veuillez réessayer."
       );
     }
   };
 
   return (
     <DashboardLayout>
-      <Box sx={{ maxWidth: 880, mx: 'auto' }}>
+      <Box sx={{ maxWidth: 880, mx: "auto" }}>
         <Stack spacing={3}>
           <PageHeader
             title="Notifications"
             subtitle={
               unreadCount > 0
-                ? `Vous avez ${unreadCount} notification${unreadCount > 1 ? 's' : ''} non lue${unreadCount > 1 ? 's' : ''}`
-                : 'Toutes les notifications sont lues'
+                ? `Vous avez ${unreadCount} notification${unreadCount > 1 ? "s" : ""} non lue${unreadCount > 1 ? "s" : ""}`
+                : "Toutes les notifications sont lues"
             }
             action={
               unreadCount > 0 ? (
@@ -162,7 +165,7 @@ export default function NotificationsPage() {
               </Card>
             ) : (
               <Stack spacing={1.5}>
-                {notifications.map((notif) => {
+                {notifications.map(notif => {
                   const style = TYPE_STYLE[notif.type] ?? FALLBACK_STYLE;
                   const target = targetFor(notif);
 
@@ -171,7 +174,9 @@ export default function NotificationsPage() {
                       key={notif.id}
                       sx={{
                         borderWidth: notif.read ? 1 : 2,
-                        borderColor: notif.read ? 'divider' : `${style.color}.main`,
+                        borderColor: notif.read
+                          ? "divider"
+                          : `${style.color}.main`,
                       }}
                     >
                       <CardContent>
@@ -188,44 +193,66 @@ export default function NotificationsPage() {
                           </Avatar>
 
                           <Stack spacing={1} sx={{ flexGrow: 1, minWidth: 0 }}>
-                            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                              <Typography variant="h4">{notif.title}</Typography>
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              sx={{ alignItems: "center" }}
+                            >
+                              <Typography variant="h4">
+                                {notif.title}
+                              </Typography>
                               {!notif.read && (
                                 <Box
                                   sx={{
                                     width: 8,
                                     height: 8,
-                                    borderRadius: '50%',
-                                    bgcolor: 'primary.main',
+                                    borderRadius: "50%",
+                                    bgcolor: "primary.main",
                                   }}
                                 />
                               )}
                             </Stack>
 
-                            <Typography variant="body2">{notif.body}</Typography>
+                            <Typography variant="body2">
+                              {notif.body}
+                            </Typography>
 
-                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                              {new Date(notif.createdAt).toLocaleString('fr-FR')}
+                            <Typography
+                              variant="caption"
+                              sx={{ color: "text.secondary" }}
+                            >
+                              {new Date(notif.createdAt).toLocaleString(
+                                "fr-FR"
+                              )}
                             </Typography>
                           </Stack>
 
                           <Stack
                             direction="row"
                             spacing={1}
-                            sx={{ flexShrink: 0, alignItems: 'flex-start' }}
+                            sx={{ flexShrink: 0, alignItems: "flex-start" }}
                           >
                             {target !== null && (
-                              <Button size="small" onClick={() => handleOpen(notif)}>
+                              <Button
+                                size="small"
+                                onClick={() => handleOpen(notif)}
+                              >
                                 Ouvrir
                               </Button>
                             )}
                             {!notif.read && (
-                              <Button size="small" onClick={() => markRead.mutate(notif.id)}>
+                              <Button
+                                size="small"
+                                onClick={() => markRead.mutate(notif.id)}
+                              >
                                 Marquer comme lu
                               </Button>
                             )}
                             <Tooltip title="Supprimer">
-                              <IconButton color="error" onClick={() => void handleDelete(notif)}>
+                              <IconButton
+                                color="error"
+                                onClick={() => void handleDelete(notif)}
+                              >
                                 <DeleteIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>

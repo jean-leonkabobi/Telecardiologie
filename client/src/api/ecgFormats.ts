@@ -12,21 +12,21 @@
  * propre message.
  */
 export const ECG_ACCEPTED_EXTENSIONS = [
-  '.pdf',
-  '.xml',
-  '.txt',
-  '.ecg',
-  '.csv',
-  '.png',
-  '.jpg',
-  '.jpeg',
+  ".pdf",
+  ".xml",
+  ".txt",
+  ".ecg",
+  ".csv",
+  ".png",
+  ".jpg",
+  ".jpeg",
 ] as const;
 
 /** Valeur de l'attribut `accept` du champ de fichier. */
-export const ECG_ACCEPT_ATTRIBUTE = ECG_ACCEPTED_EXTENSIONS.join(',');
+export const ECG_ACCEPT_ATTRIBUTE = ECG_ACCEPTED_EXTENSIONS.join(",");
 
 /** Formulation lisible, pour la légende et les messages d'erreur. */
-export const ECG_FORMATS_LABEL = 'PDF, XML, texte, CSV, PNG ou JPEG';
+export const ECG_FORMATS_LABEL = "PDF, XML, texte, CSV, PNG ou JPEG";
 
 /** Doit rester alignée sur `ECG_MAX_FILE_SIZE_MB` du serveur. */
 export const ECG_MAX_FILE_SIZE_MB = 20;
@@ -36,11 +36,11 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;
 
   const ko = bytes / 1024;
-  if (ko < 1024) return `${ko.toFixed(0).replace('.', ',')} Ko`;
+  if (ko < 1024) return `${ko.toFixed(0).replace(".", ",")} Ko`;
 
   const mo = ko / 1024;
   const arrondi = mo >= 10 ? mo.toFixed(0) : mo.toFixed(1);
-  return `${arrondi.replace('.', ',')} Mo`;
+  return `${arrondi.replace(".", ",")} Mo`;
 }
 
 /**
@@ -51,11 +51,15 @@ export function formatFileSize(bytes: number): string {
  * c'est le rôle du serveur.
  */
 export function checkEcgFile(file: File): string | null {
-  const point = file.name.lastIndexOf('.');
-  const extension = point === -1 ? '' : file.name.slice(point).toLowerCase();
+  const point = file.name.lastIndexOf(".");
+  const extension = point === -1 ? "" : file.name.slice(point).toLowerCase();
 
-  if (!ECG_ACCEPTED_EXTENSIONS.includes(extension as (typeof ECG_ACCEPTED_EXTENSIONS)[number])) {
-    return `Format non supporté${extension ? ` (${extension})` : ''}. Formats acceptés : ${ECG_FORMATS_LABEL}.`;
+  if (
+    !ECG_ACCEPTED_EXTENSIONS.includes(
+      extension as (typeof ECG_ACCEPTED_EXTENSIONS)[number]
+    )
+  ) {
+    return `Format non supporté${extension ? ` (${extension})` : ""}. Formats acceptés : ${ECG_FORMATS_LABEL}.`;
   }
 
   const maxBytes = ECG_MAX_FILE_SIZE_MB * 1024 * 1024;

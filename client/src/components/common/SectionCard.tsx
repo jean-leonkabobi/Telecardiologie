@@ -1,8 +1,8 @@
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader';
-import type { SxProps, Theme } from '@mui/material/styles';
-import type { ReactNode } from 'react';
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import CardHeader from "@mui/material/CardHeader";
+import type { SxProps, Theme } from "@mui/material/styles";
+import type { ReactNode } from "react";
 
 interface SectionCardProps {
   title?: ReactNode;
@@ -25,12 +25,16 @@ export function SectionCard({
   sx,
 }: SectionCardProps) {
   return (
-    <Card sx={{ display: 'flex', flexDirection: 'column', height: '100%', ...sx }}>
-      {(title || action) && <CardHeader title={title} subheader={subheader} action={action} />}
+    <Card
+      sx={{ display: "flex", flexDirection: "column", height: "100%", ...sx }}
+    >
+      {(title || action) && (
+        <CardHeader title={title} subheader={subheader} action={action} />
+      )}
       <CardContent
         sx={{
           flexGrow: 1,
-          ...(disableContentPadding && { p: 0, '&:last-child': { pb: 0 } }),
+          ...(disableContentPadding && { p: 0, "&:last-child": { pb: 0 } }),
         }}
       >
         {children}

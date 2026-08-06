@@ -1,13 +1,13 @@
-import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 
 interface LogoProps {
   size?: number;
   /** Affiche le nom de la plateforme à côté de la marque. */
   showWordmark?: boolean;
   /** `inverse` pour un fond sombre ou coloré. */
-  variant?: 'default' | 'inverse';
+  variant?: "default" | "inverse";
   subtitle?: string;
 }
 
@@ -18,11 +18,20 @@ interface LogoProps {
  * il hérite ainsi des couleurs du thème et reste net à toute taille, sans
  * requête réseau supplémentaire.
  */
-export function Logo({ size = 36, showWordmark = true, variant = 'default', subtitle }: LogoProps) {
-  const inverse = variant === 'inverse';
+export function Logo({
+  size = 36,
+  showWordmark = true,
+  variant = "default",
+  subtitle,
+}: LogoProps) {
+  const inverse = variant === "inverse";
 
   return (
-    <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
+    <Stack
+      direction="row"
+      spacing={1.5}
+      sx={{ alignItems: "center", minWidth: 0 }}
+    >
       <Box
         component="svg"
         viewBox="0 0 64 64"
@@ -41,7 +50,9 @@ export function Logo({ size = 36, showWordmark = true, variant = 'default', subt
           width="64"
           height="64"
           rx="15"
-          fill={inverse ? 'rgba(255,255,255,0.14)' : 'url(#logo-heart-gradient)'}
+          fill={
+            inverse ? "rgba(255,255,255,0.14)" : "url(#logo-heart-gradient)"
+          }
         />
 
         {/* Contour du cœur, interrompu là où passe le tracé. */}
@@ -72,8 +83,8 @@ export function Logo({ size = 36, showWordmark = true, variant = 'default', subt
             variant="h4"
             noWrap
             sx={{
-              color: inverse ? 'common.white' : 'text.primary',
-              letterSpacing: '-0.02em',
+              color: inverse ? "common.white" : "text.primary",
+              letterSpacing: "-0.02em",
               lineHeight: 1.2,
             }}
           >
@@ -84,8 +95,8 @@ export function Logo({ size = 36, showWordmark = true, variant = 'default', subt
               variant="caption"
               noWrap
               sx={{
-                display: 'block',
-                color: inverse ? 'rgba(255,255,255,0.78)' : 'text.secondary',
+                display: "block",
+                color: inverse ? "rgba(255,255,255,0.78)" : "text.secondary",
               }}
             >
               {subtitle}

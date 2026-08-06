@@ -16,14 +16,14 @@
  * page cible d'obtenir une référence vers la nôtre.
  */
 export function triggerDownload(url: string, fileName: string): void {
-  const ancre = document.createElement('a');
+  const ancre = document.createElement("a");
   ancre.href = url;
   // Indication seulement : sur une origine différente, le navigateur ignore ce
   // nom et suit le `Content-Disposition` renvoyé par le stockage — que l'API
   // demande justement dans l'URL signée.
   ancre.download = fileName;
-  ancre.rel = 'noopener';
-  ancre.style.display = 'none';
+  ancre.rel = "noopener";
+  ancre.style.display = "none";
 
   document.body.appendChild(ancre);
   ancre.click();

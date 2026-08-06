@@ -1,5 +1,5 @@
-import type { SxProps, Theme } from '@mui/material/styles';
-import { FORM_CONTROL_HEIGHT } from '@/theme';
+import type { SxProps, Theme } from "@mui/material/styles";
+import { FORM_CONTROL_HEIGHT } from "@/theme";
 
 /**
  * Style utilisable seul (`sx={x}`) **ou** composé (`sx={[x, { … }]}`).
@@ -12,7 +12,10 @@ import { FORM_CONTROL_HEIGHT } from '@/theme';
  * `SystemStyleObject` serait le type exact, mais `@mui/material/styles` ne le
  * réexporte pas et `@mui/system` n'est pas une dépendance directe.
  */
-type ComposableSx = Exclude<SxProps<Theme>, readonly unknown[] | ((theme: Theme) => unknown)>;
+type ComposableSx = Exclude<
+  SxProps<Theme>,
+  readonly unknown[] | ((theme: Theme) => unknown)
+>;
 
 /**
  * Contrôles de formulaire en hauteur confortable.
@@ -28,18 +31,18 @@ type ComposableSx = Exclude<SxProps<Theme>, readonly unknown[] | ((theme: Theme)
  * internes et le style ne fait qu'agrandir la bordure. Les deux vont ensemble.
  */
 export const tallFieldSx: ComposableSx = {
-  '& .MuiOutlinedInput-root': {
+  "& .MuiOutlinedInput-root": {
     minHeight: FORM_CONTROL_HEIGHT,
   },
   // Le libellé flottant se recentre sur la nouvelle hauteur, sinon il reste
   // calé trop haut par rapport au texte saisi.
-  '& .MuiInputLabel-root:not(.MuiInputLabel-shrink)': {
+  "& .MuiInputLabel-root:not(.MuiInputLabel-shrink)": {
     transform: `translate(14px, ${(FORM_CONTROL_HEIGHT - 23) / 2}px) scale(1)`,
   },
-  '& .MuiOutlinedInput-input': {
+  "& .MuiOutlinedInput-input": {
     paddingTop: 0,
     paddingBottom: 0,
-    height: 'auto',
+    height: "auto",
   },
 };
 
@@ -52,7 +55,7 @@ export const tallFieldSx: ComposableSx = {
  */
 export const tallButtonSx: ComposableSx = {
   minHeight: FORM_CONTROL_HEIGHT,
-  fontSize: '0.9375rem',
+  fontSize: "0.9375rem",
 };
 
 export { FORM_CONTROL_HEIGHT };

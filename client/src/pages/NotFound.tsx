@@ -1,15 +1,15 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
-import HomeIcon from '@mui/icons-material/HomeOutlined';
-import { useLocation } from 'wouter';
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlined";
+import HomeIcon from "@mui/icons-material/HomeOutlined";
+import { useLocation } from "wouter";
 
-import { DashboardLayout } from '@/components/DashboardLayout';
-import { useAuth } from '@/contexts/AuthContext';
+import { DashboardLayout } from "@/components/DashboardLayout";
+import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * Écran d'adresse inconnue — **et** d'écran interdit à un rôle.
@@ -36,19 +36,26 @@ export default function NotFound() {
           // Hors session, l'écran est seul et se centre sur la fenêtre. Dans la
           // coquille, la barre et le menu occupent déjà leur place : garder
           // `100vh` ferait déborder la page de la hauteur de la barre.
-          minHeight: user ? '60vh' : '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          minHeight: user ? "60vh" : "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           p: 2,
         }}
       >
-        <Card sx={{ width: '100%', maxWidth: 520 }}>
+        <Card sx={{ width: "100%", maxWidth: 520 }}>
           <CardContent sx={{ py: 5 }}>
-            <Stack spacing={2} sx={{ alignItems: 'center', textAlign: 'center' }}>
-              <ErrorOutlineIcon sx={{ fontSize: 64, color: 'error.main' }} />
+            <Stack
+              spacing={2}
+              sx={{ alignItems: "center", textAlign: "center" }}
+            >
+              <ErrorOutlineIcon sx={{ fontSize: 64, color: "error.main" }} />
 
-              <Typography variant="h1" component="p" sx={{ fontSize: '2.5rem' }}>
+              <Typography
+                variant="h1"
+                component="p"
+                sx={{ fontSize: "2.5rem" }}
+              >
                 404
               </Typography>
 
@@ -56,10 +63,11 @@ export default function NotFound() {
                 Page introuvable
               </Typography>
 
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
                 {user ? (
                   <>
-                    Cette adresse n'existe pas, ou n'est pas accessible avec votre profil.
+                    Cette adresse n'existe pas, ou n'est pas accessible avec
+                    votre profil.
                     <br />
                     Les écrans qui vous sont destinés figurent dans le menu.
                   </>
@@ -76,9 +84,9 @@ export default function NotFound() {
                 <Button
                   variant="contained"
                   startIcon={<HomeIcon />}
-                  onClick={() => setLocation('/')}
+                  onClick={() => setLocation("/")}
                 >
-                  {user ? 'Retour au tableau de bord' : "Retour à l'accueil"}
+                  {user ? "Retour au tableau de bord" : "Retour à l'accueil"}
                 </Button>
               </Box>
             </Stack>

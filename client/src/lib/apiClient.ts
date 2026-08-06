@@ -13,7 +13,12 @@
  */
 
 export interface ApiErrorBody {
-  error: { code: string; message: string; field?: string; details?: Record<string, string> };
+  error: {
+    code: string;
+    message: string;
+    field?: string;
+    details?: Record<string, string>;
+  };
 }
 
 export class ApiError extends Error {
@@ -22,10 +27,10 @@ export class ApiError extends Error {
     readonly code: string,
     message: string,
     readonly field?: string,
-    readonly details?: Record<string, string>,
+    readonly details?: Record<string, string>
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 
   /** Vrai quand l'appel a échoué faute de réseau, pas à cause du serveur. */
@@ -46,7 +51,7 @@ export class ApiError extends Error {
  * distant, environnement de recette). Cette origine doit alors figurer dans
  * `CORS_ORIGINS` côté serveur.
  */
-const API_BASE = `${(import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')}/api`;
+const API_BASE = `${(import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "")}/api`;
 
 let accessToken: string | null = null;
 /** Rafraîchissement en cours, partagé par tous les appels concurrents. */
@@ -83,20 +88,20 @@ async function parseError(response: Response): Promise<ApiError> {
   if (response.status === 404 && !body.error) {
     return new ApiError(
       404,
-      'API_UNREACHABLE',
+      "API_UNREACHABLE",
       import.meta.env.DEV
         ? "L'API n'a pas répondu sur cette adresse. Vérifiez que le serveur est démarré " +
-          '(`npm run dev:server`) et qu’aucun autre service n’occupe son port.'
-        : 'Service momentanément indisponible. Veuillez réessayer.',
+            "(`npm run dev:server`) et qu’aucun autre service n’occupe son port."
+        : "Service momentanément indisponible. Veuillez réessayer."
     );
   }
 
   return new ApiError(
     response.status,
-    body.error?.code ?? (isJson ? 'UNKNOWN' : 'UNEXPECTED_RESPONSE'),
-    body.error?.message ?? 'Une erreur est survenue. Veuillez réessayer.',
+    body.error?.code ?? (isJson ? "UNKNOWN" : "UNEXPECTED_RESPONSE"),
+    body.error?.message ?? "Une erreur est survenue. Veuillez réessayer.",
     body.error?.field,
-    body.error?.details,
+    body.error?.details
   );
 }
 
@@ -105,8 +110,8 @@ async function refreshSession(): Promise<boolean> {
   refreshPromise ??= (async () => {
     try {
       const response = await fetch(`${API_BASE}/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
+        method: "POST",
+        credentials: "include",
       });
       if (!response.ok) return false;
 
@@ -146,7 +151,10 @@ export interface BinaryResponse {
  * La forme `filename*` en UTF-8 primait la forme ASCII quand les deux sont
  * présentes — c'est ce que le serveur envoie pour les noms accentués.
  */
-function fileNameFromDisposition(header: string | null, defaut: string): string {
+function fileNameFromDisposition(
+  header: string | null,
+  defaut: string
+): string {
   if (!header) return defaut;
 
   const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(header);
@@ -161,7 +169,10 @@ function fileNameFromDisposition(header: string | null, defaut: string): string 
   return /filename="?([^\";]+)"?/i.exec(header)?.[1]?.trim() ?? defaut;
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  options: RequestOptions = {}
+): Promise<T> {
   const send = async (): Promise<Response> => {
     const headers: Record<string, string> = {};
 
@@ -169,14 +180,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     // connaît la frontière (`boundary`) qu'il vient de générer. La renseigner à
     // la main produit un corps que le serveur ne sait pas découper.
     if (options.formData === undefined && options.body !== undefined) {
-      headers['Content-Type'] = 'application/json';
+      headers["Content-Type"] = "application/json";
     }
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
     return fetch(`${API_BASE}${path}`, {
-      method: options.method ?? 'GET',
+      method: options.method ?? "GET",
       headers,
-      credentials: 'include',
+      credentials: "include",
       body:
         options.formData ??
         (options.body !== undefined ? JSON.stringify(options.body) : undefined),
@@ -189,8 +200,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   } catch {
     throw new ApiError(
       0,
-      'NETWORK_ERROR',
-      'Impossible de joindre le serveur. Vérifiez votre connexion.',
+      "NETWORK_ERROR",
+      "Impossible de joindre le serveur. Vérifiez votre connexion."
     );
   }
 
@@ -201,7 +212,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       try {
         response = await send();
       } catch {
-        throw new ApiError(0, 'NETWORK_ERROR', 'Impossible de joindre le serveur.');
+        throw new ApiError(
+          0,
+          "NETWORK_ERROR",
+          "Impossible de joindre le serveur."
+        );
       }
     } else if (accessToken) {
       // On n'avertit que si une session existait : un 401 sur la page de
@@ -223,8 +238,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     return {
       body: await response.blob(),
       fileName: fileNameFromDisposition(
-        response.headers.get('Content-Disposition'),
-        'document.pdf',
+        response.headers.get("Content-Disposition"),
+        "document.pdf"
       ),
     } as T;
   }
@@ -234,13 +249,22 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
 export const api = {
   get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body?: unknown, options?: { skipRefresh?: boolean }) =>
-    request<T>(path, { method: 'POST', body, skipRefresh: options?.skipRefresh }),
-  patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
-  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  post: <T>(
+    path: string,
+    body?: unknown,
+    options?: { skipRefresh?: boolean }
+  ) =>
+    request<T>(path, {
+      method: "POST",
+      body,
+      skipRefresh: options?.skipRefresh,
+    }),
+  patch: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: "PATCH", body }),
+  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   /** Envoi de fichier. Le rafraîchissement de jeton s'applique aussi ici. */
   upload: <T>(path: string, formData: FormData) =>
-    request<T>(path, { method: 'POST', formData }),
+    request<T>(path, { method: "POST", formData }),
   /**
    * Téléchargement d'un document généré par l'API.
    *

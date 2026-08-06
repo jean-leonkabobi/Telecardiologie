@@ -1,15 +1,15 @@
-import Chip from '@mui/material/Chip';
-import Grid from '@mui/material/Grid';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import MonitorHeartIcon from '@mui/icons-material/MonitorHeartOutlined';
+import Chip from "@mui/material/Chip";
+import Grid from "@mui/material/Grid";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import MonitorHeartIcon from "@mui/icons-material/MonitorHeartOutlined";
 
-import { DetailItem } from '@/components/common/DetailItem';
-import type { EcgRequestDetail } from '@/api/types';
+import { DetailItem } from "@/components/common/DetailItem";
+import type { EcgRequestDetail } from "@/api/types";
 
 interface EcgRecordingContextProps {
   indicationLabel: string;
-  recording: EcgRequestDetail['recording'];
+  recording: EcgRequestDetail["recording"];
 }
 
 /**
@@ -25,10 +25,13 @@ interface EcgRecordingContextProps {
  * information de ce bloc qui change la lecture de **toutes** les autres, et elle
  * doit se voir avant qu'on ait commencé à examiner le tracé.
  */
-export function EcgRecordingContext({ indicationLabel, recording }: EcgRecordingContextProps) {
+export function EcgRecordingContext({
+  indicationLabel,
+  recording,
+}: EcgRecordingContextProps) {
   const tension =
     recording.systolicBp !== null || recording.diastolicBp !== null
-      ? `${recording.systolicBp ?? '—'}/${recording.diastolicBp ?? '—'} mmHg`
+      ? `${recording.systolicBp ?? "—"}/${recording.diastolicBp ?? "—"} mmHg`
       : null;
 
   const morphologie =
@@ -36,10 +39,12 @@ export function EcgRecordingContext({ indicationLabel, recording }: EcgRecording
       ? [
           recording.weightKg !== null ? `${recording.weightKg} kg` : null,
           recording.heightCm !== null ? `${recording.heightCm} cm` : null,
-          recording.bmi !== null ? `IMC ${String(recording.bmi).replace('.', ',')}` : null,
+          recording.bmi !== null
+            ? `IMC ${String(recording.bmi).replace(".", ",")}`
+            : null,
         ]
           .filter(Boolean)
-          .join(' · ')
+          .join(" · ")
       : null;
 
   /**
@@ -51,15 +56,21 @@ export function EcgRecordingContext({ indicationLabel, recording }: EcgRecording
   const lignes: [string, string][] = [
     ["Motif de l'examen", indicationLabel],
     ...(recording.recordedAt
-      ? ([['Enregistré le', new Date(recording.recordedAt).toLocaleString('fr-FR')]] as [
-          string,
-          string,
-        ][])
+      ? ([
+          [
+            "Enregistré le",
+            new Date(recording.recordedAt).toLocaleString("fr-FR"),
+          ],
+        ] as [string, string][])
       : []),
-    ...(tension ? ([['Tension artérielle', tension]] as [string, string][]) : []),
-    ...(morphologie ? ([['Morphologie', morphologie]] as [string, string][]) : []),
+    ...(tension
+      ? ([["Tension artérielle", tension]] as [string, string][])
+      : []),
+    ...(morphologie
+      ? ([["Morphologie", morphologie]] as [string, string][])
+      : []),
     ...(recording.deviceModel
-      ? ([['Appareil', recording.deviceModel]] as [string, string][])
+      ? ([["Appareil", recording.deviceModel]] as [string, string][])
       : []),
   ];
 
@@ -70,7 +81,7 @@ export function EcgRecordingContext({ indicationLabel, recording }: EcgRecording
           icon={<MonitorHeartIcon />}
           label="Porteur d'un stimulateur ou défibrillateur"
           color="info"
-          sx={{ alignSelf: 'flex-start' }}
+          sx={{ alignSelf: "flex-start" }}
         />
       )}
 
@@ -83,13 +94,16 @@ export function EcgRecordingContext({ indicationLabel, recording }: EcgRecording
       </Grid>
 
       {recording.currentMedication && (
-        <DetailItem label="Traitement en cours" value={recording.currentMedication} />
+        <DetailItem
+          label="Traitement en cours"
+          value={recording.currentMedication}
+        />
       )}
 
       {!recording.recordedAt && (
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          La date d'enregistrement n'a pas été précisée : le tracé peut être antérieur à
-          la soumission.
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+          La date d'enregistrement n'a pas été précisée : le tracé peut être
+          antérieur à la soumission.
         </Typography>
       )}
     </Stack>

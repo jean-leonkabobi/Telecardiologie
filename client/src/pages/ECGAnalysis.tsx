@@ -1,28 +1,28 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
-import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlined';
-import CloseIcon from '@mui/icons-material/Close';
-import DownloadIcon from '@mui/icons-material/Download';
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdfOutlined';
-import { useState } from 'react';
-import { useLocation, useParams } from 'wouter';
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import Divider from "@mui/material/Divider";
+import Grid from "@mui/material/Grid";
+import IconButton from "@mui/material/IconButton";
+import LinearProgress from "@mui/material/LinearProgress";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import CheckCircleIcon from "@mui/icons-material/CheckCircleOutlined";
+import CloseIcon from "@mui/icons-material/Close";
+import DownloadIcon from "@mui/icons-material/Download";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdfOutlined";
+import { useState } from "react";
+import { useLocation, useParams } from "wouter";
 
-import { DashboardLayout } from '@/components/DashboardLayout';
-import { DetailItem } from '@/components/common/DetailItem';
-import { InfoPanel } from '@/components/common/InfoPanel';
-import { PageHeader } from '@/components/common/PageHeader';
-import { QueryBoundary } from '@/components/common/QueryBoundary';
-import { SectionCard } from '@/components/common/SectionCard';
-import { StatusChip } from '@/components/common/StatusChip';
+import { DashboardLayout } from "@/components/DashboardLayout";
+import { DetailItem } from "@/components/common/DetailItem";
+import { InfoPanel } from "@/components/common/InfoPanel";
+import { PageHeader } from "@/components/common/PageHeader";
+import { QueryBoundary } from "@/components/common/QueryBoundary";
+import { SectionCard } from "@/components/common/SectionCard";
+import { StatusChip } from "@/components/common/StatusChip";
 import {
   useClaimEcgRequest,
   useEcgFileUrl,
@@ -31,16 +31,20 @@ import {
   useEcgWaveform,
   useReleaseEcgRequest,
   useReviewEcgRequest,
-} from '@/api/hooks';
-import type { EcgAnalysisResult, EcgRequestFullDetail, ReviewAction } from '@/api/types';
-import { EcgDocumentViewer } from '@/components/ecg/EcgDocumentViewer';
-import { EcgRecordingContext } from '@/components/ecg/EcgRecordingContext';
-import { EcgWaveformViewer } from '@/components/ecg/EcgWaveformViewer';
-import { describeRedFlag, hasCriticalFlag } from '@/api/redFlags';
-import { useAuth } from '@/contexts/AuthContext';
-import { ApiError } from '@/lib/apiClient';
-import { triggerDownload } from '@/lib/download';
-import { confirm, notify } from '@/lib/alerts';
+} from "@/api/hooks";
+import type {
+  EcgAnalysisResult,
+  EcgRequestFullDetail,
+  ReviewAction,
+} from "@/api/types";
+import { EcgDocumentViewer } from "@/components/ecg/EcgDocumentViewer";
+import { EcgRecordingContext } from "@/components/ecg/EcgRecordingContext";
+import { EcgWaveformViewer } from "@/components/ecg/EcgWaveformViewer";
+import { describeRedFlag, hasCriticalFlag } from "@/api/redFlags";
+import { useAuth } from "@/contexts/AuthContext";
+import { ApiError } from "@/lib/apiClient";
+import { triggerDownload } from "@/lib/download";
+import { confirm, notify } from "@/lib/alerts";
 
 /**
  * Rend les intervalles sous forme compacte, ou rien s'ils sont tous absents.
@@ -48,28 +52,30 @@ import { confirm, notify } from '@/lib/alerts';
  * Afficher « PR : — · QRS : — » sur un tracé non mesuré n'informerait pas, il
  * encombrerait.
  */
-function formatIntervals(intervals: EcgAnalysisResult['intervals']): string | null {
+function formatIntervals(
+  intervals: EcgAnalysisResult["intervals"]
+): string | null {
   const parties = [
     intervals.prMs !== null && `PR ${intervals.prMs} ms`,
     intervals.qrsMs !== null && `QRS ${intervals.qrsMs} ms`,
     intervals.qtMs !== null && `QT ${intervals.qtMs} ms`,
     intervals.qtcMs !== null && `QTc ${intervals.qtcMs} ms`,
     intervals.axisDegrees !== null && `axe ${intervals.axisDegrees}°`,
-  ].filter((p): p is string => typeof p === 'string');
+  ].filter((p): p is string => typeof p === "string");
 
-  return parties.length > 0 ? parties.join(' · ') : null;
+  return parties.length > 0 ? parties.join(" · ") : null;
 }
 
 const DECISION_TITLES: Record<ReviewAction, string> = {
-  validate: 'Confirmer la validation',
+  validate: "Confirmer la validation",
   correct: "Corriger l'interprétation",
-  reject: 'Motif du rejet',
+  reject: "Motif du rejet",
 };
 
 const DECISION_SUCCESS: Record<ReviewAction, string> = {
-  validate: 'Analyse validée',
-  correct: 'Correction enregistrée',
-  reject: 'Demande rejetée',
+  validate: "Analyse validée",
+  correct: "Correction enregistrée",
+  reject: "Demande rejetée",
 };
 
 export default function ECGAnalysis() {
@@ -78,7 +84,7 @@ export default function ECGAnalysis() {
 
   return (
     <DashboardLayout>
-      <Box sx={{ maxWidth: 1280, mx: 'auto' }}>
+      <Box sx={{ maxWidth: 1280, mx: "auto" }}>
         <QueryBoundary
           isLoading={query.isLoading}
           error={query.error}
@@ -96,9 +102,12 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
   const { user } = useAuth();
 
   const [decision, setDecision] = useState<ReviewAction | null>(null);
-  const [comment, setComment] = useState('');
-  const [diagnosis, setDiagnosis] = useState('');
-  const [errors, setErrors] = useState<{ comment?: boolean; diagnosis?: boolean }>({});
+  const [comment, setComment] = useState("");
+  const [diagnosis, setDiagnosis] = useState("");
+  const [errors, setErrors] = useState<{
+    comment?: boolean;
+    diagnosis?: boolean;
+  }>({});
 
   const claim = useClaimEcgRequest();
   const release = useReleaseEcgRequest();
@@ -107,18 +116,20 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
   const report = useEcgReport();
   const waveform = useEcgWaveform(request.id);
 
-  const mine = request.assignedToId !== null && request.assignedToId === user?.id;
-  const analysisRunning = request.status === 'PENDING_ANALYSIS' || request.status === 'ANALYZING';
+  const mine =
+    request.assignedToId !== null && request.assignedToId === user?.id;
+  const analysisRunning =
+    request.status === "PENDING_ANALYSIS" || request.status === "ANALYZING";
 
   // « Corriger » impose les deux champs : sans conclusion de remplacement, la
   // correction ne dit pas ce qui remplace l'interprétation de l'IA.
-  const commentRequired = decision === 'correct' || decision === 'reject';
-  const diagnosisRequired = decision === 'validate' || decision === 'correct';
+  const commentRequired = decision === "correct" || decision === "reject";
+  const diagnosisRequired = decision === "validate" || decision === "correct";
 
   const resetDecision = () => {
     setDecision(null);
-    setComment('');
-    setDiagnosis('');
+    setComment("");
+    setDiagnosis("");
     setErrors({});
   };
 
@@ -127,37 +138,45 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
     setErrors({});
     // Pré-remplir avec l'interprétation de l'IA fait gagner du temps sur une
     // validation, et donne un point de départ concret à une correction.
-    setDiagnosis(next === 'reject' ? '' : (request.analysis?.interpretation ?? ''));
+    setDiagnosis(
+      next === "reject" ? "" : (request.analysis?.interpretation ?? "")
+    );
   };
 
   const handleClaim = async () => {
     try {
       await claim.mutateAsync(request.id);
-      notify.success('Demande prise en charge', `${request.reference} vous est assignée.`);
+      notify.success(
+        "Demande prise en charge",
+        `${request.reference} vous est assignée.`
+      );
     } catch (error) {
       notify.error(
-        'Prise en charge impossible',
-        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+        "Prise en charge impossible",
+        error instanceof ApiError ? error.message : "Veuillez réessayer."
       );
     }
   };
 
   const handleRelease = async () => {
     const confirmed = await confirm({
-      title: 'Relâcher la demande ?',
-      text: 'Elle retournera dans la file commune et un confrère pourra la reprendre.',
-      confirmLabel: 'Relâcher',
+      title: "Relâcher la demande ?",
+      text: "Elle retournera dans la file commune et un confrère pourra la reprendre.",
+      confirmLabel: "Relâcher",
     });
     if (!confirmed) return;
 
     try {
       await release.mutateAsync(request.id);
-      notify.success('Demande relâchée', `${request.reference} est de retour dans la file.`);
-      navigate('/queue');
+      notify.success(
+        "Demande relâchée",
+        `${request.reference} est de retour dans la file.`
+      );
+      navigate("/queue");
     } catch (error) {
       notify.error(
-        'Impossible de relâcher',
-        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+        "Impossible de relâcher",
+        error instanceof ApiError ? error.message : "Veuillez réessayer."
       );
     }
   };
@@ -167,12 +186,15 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
     if (!decision) return;
 
     const nextErrors = {
-      comment: commentRequired && comment.trim() === '',
-      diagnosis: diagnosisRequired && diagnosis.trim() === '',
+      comment: commentRequired && comment.trim() === "",
+      diagnosis: diagnosisRequired && diagnosis.trim() === "",
     };
     if (nextErrors.comment || nextErrors.diagnosis) {
       setErrors(nextErrors);
-      notify.error('Formulaire incomplet', 'Les champs obligatoires doivent être renseignés.');
+      notify.error(
+        "Formulaire incomplet",
+        "Les champs obligatoires doivent être renseignés."
+      );
       return;
     }
 
@@ -180,15 +202,18 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
       await review.mutateAsync({
         id: request.id,
         decision,
-        comment: comment.trim() === '' ? undefined : comment.trim(),
-        finalDiagnosis: diagnosis.trim() === '' ? undefined : diagnosis.trim(),
+        comment: comment.trim() === "" ? undefined : comment.trim(),
+        finalDiagnosis: diagnosis.trim() === "" ? undefined : diagnosis.trim(),
       });
-      notify.success(DECISION_SUCCESS[decision], `${request.reference} est conclue.`);
-      navigate('/queue');
+      notify.success(
+        DECISION_SUCCESS[decision],
+        `${request.reference} est conclue.`
+      );
+      navigate("/queue");
     } catch (error) {
       notify.error(
-        'Enregistrement impossible',
-        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+        "Enregistrement impossible",
+        error instanceof ApiError ? error.message : "Veuillez réessayer."
       );
     }
   };
@@ -209,8 +234,8 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (error) {
       notify.error(
-        'Compte rendu indisponible',
-        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+        "Compte rendu indisponible",
+        error instanceof ApiError ? error.message : "Veuillez réessayer."
       );
     }
   };
@@ -221,8 +246,8 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
       triggerDownload(url, fileName);
     } catch (error) {
       notify.error(
-        'Téléchargement impossible',
-        error instanceof ApiError ? error.message : 'Veuillez réessayer.',
+        "Téléchargement impossible",
+        error instanceof ApiError ? error.message : "Veuillez réessayer."
       );
     }
   };
@@ -232,62 +257,88 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
       <PageHeader
         title="Analyse ECG"
         subtitle={`${request.reference} · ${request.patient.fullName}`}
-        backTo={{ href: '/queue', label: "Retour à la file d'attente" }}
+        backTo={{ href: "/queue", label: "Retour à la file d'attente" }}
         action={
           <Stack direction="row" spacing={1}>
-            <StatusChip status={request.priorityLabel} statusKey={request.priority} size="medium" />
-            <StatusChip status={request.statusLabel} statusKey={request.status} size="medium" />
+            <StatusChip
+              status={request.priorityLabel}
+              statusKey={request.priority}
+              size="medium"
+            />
+            <StatusChip
+              status={request.statusLabel}
+              statusKey={request.status}
+              size="medium"
+            />
           </Stack>
         }
       />
 
-      {request.status !== 'UNDER_REVIEW' && request.reviewedAt === null && !analysisRunning && (
-        <InfoPanel tone="warning" title="Demande non prise en charge">
-          <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
-            <Typography variant="body2">
-              Vous devez prendre la demande en charge avant de pouvoir rendre une conclusion.
-            </Typography>
-            <Button variant="contained" onClick={() => void handleClaim()} loading={claim.isPending}>
-              Prendre en charge
-            </Button>
-          </Stack>
-        </InfoPanel>
-      )}
+      {request.status !== "UNDER_REVIEW" &&
+        request.reviewedAt === null &&
+        !analysisRunning && (
+          <InfoPanel tone="warning" title="Demande non prise en charge">
+            <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
+              <Typography variant="body2">
+                Vous devez prendre la demande en charge avant de pouvoir rendre
+                une conclusion.
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => void handleClaim()}
+                loading={claim.isPending}
+              >
+                Prendre en charge
+              </Button>
+            </Stack>
+          </InfoPanel>
+        )}
 
       {request.openToExternalReview && (
         <InfoPanel tone="info" title="Sollicitation hors structure">
           <Stack spacing={0.75} sx={{ mt: 1 }}>
             <Typography variant="body2">
-              Cette demande a été ouverte à un avis extérieur à l'établissement d'origine
+              Cette demande a été ouverte à un avis extérieur à l'établissement
+              d'origine
               {request.externalReviewRequestedAt !== null &&
-                ` le ${new Date(request.externalReviewRequestedAt).toLocaleString('fr-FR')}`}
+                ` le ${new Date(request.externalReviewRequestedAt).toLocaleString("fr-FR")}`}
               .
             </Typography>
             {request.externalReviewReason !== null && (
-              <DetailItem label="Motif invoqué" value={request.externalReviewReason} />
+              <DetailItem
+                label="Motif invoqué"
+                value={request.externalReviewReason}
+              />
             )}
           </Stack>
         </InfoPanel>
       )}
 
-      {request.status === 'UNDER_REVIEW' && !mine && (
+      {request.status === "UNDER_REVIEW" && !mine && (
         <InfoPanel tone="warning" title="Demande détenue par un confrère">
-          {request.assignedToName ?? 'Un autre cardiologue'} examine actuellement ce tracé.
+          {request.assignedToName ?? "Un autre cardiologue"} examine
+          actuellement ce tracé.
         </InfoPanel>
       )}
 
       {request.reviewedAt !== null && (
-        <InfoPanel tone="info" title={`Conclusion rendue — ${request.reviewDecisionLabel}`}>
+        <InfoPanel
+          tone="info"
+          title={`Conclusion rendue — ${request.reviewDecisionLabel}`}
+        >
           <Stack spacing={1} sx={{ mt: 1 }}>
             {request.finalDiagnosis && (
-              <DetailItem label="Diagnostic retenu" value={request.finalDiagnosis} />
+              <DetailItem
+                label="Diagnostic retenu"
+                value={request.finalDiagnosis}
+              />
             )}
             {request.reviewComment && (
               <DetailItem label="Commentaire" value={request.reviewComment} />
             )}
             <DetailItem
               label="Par"
-              value={`${request.reviewedByName ?? '—'} le ${new Date(request.reviewedAt).toLocaleString('fr-FR')}`}
+              value={`${request.reviewedByName ?? "—"} le ${new Date(request.reviewedAt).toLocaleString("fr-FR")}`}
             />
           </Stack>
         </InfoPanel>
@@ -295,44 +346,50 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
 
       <Grid container spacing={3}>
         {/**
-          * Le tracé occupe toute la largeur, et vient en premier.
-          *
-          * Il était logé dans une colonne d'un tiers, à côté de l'identité et de
-          * l'interprétation. Or un ECG douze dérivations à l'échelle réglementaire
-          * demande environ mille pixels : dans un tiers d'écran, la disposition ne
-          * pouvait afficher que deux des quatre groupes de colonnes — V1 à V6
-          * n'apparaissaient jamais, sans que rien ne le signale.
-          *
-          * C'est aussi la pièce sur laquelle porte la décision : la mettre en tête
-          * suit l'ordre dans lequel le cardiologue travaille — il regarde le tracé,
-          * puis confronte l'interprétation proposée.
-          */}
+         * Le tracé occupe toute la largeur, et vient en premier.
+         *
+         * Il était logé dans une colonne d'un tiers, à côté de l'identité et de
+         * l'interprétation. Or un ECG douze dérivations à l'échelle réglementaire
+         * demande environ mille pixels : dans un tiers d'écran, la disposition ne
+         * pouvait afficher que deux des quatre groupes de colonnes — V1 à V6
+         * n'apparaissaient jamais, sans que rien ne le signale.
+         *
+         * C'est aussi la pièce sur laquelle porte la décision : la mettre en tête
+         * suit l'ordre dans lequel le cardiologue travaille — il regarde le tracé,
+         * puis confronte l'interprétation proposée.
+         */}
         <Grid size={12}>
           <SectionCard title="Tracé ECG">
             <Stack spacing={2}>
               {waveform.isLoading && <LinearProgress />}
 
               {/**
-                * Deux façons de voir le tracé, selon ce que porte le fichier.
-                *
-                * Un export XML donne les échantillons : le tracé est redessiné aux
-                * conventions de l'électrocardiographe, mesurable, avec vitesse et
-                * gain réglables. Un PDF ou une photo porte un dessin : c'est le
-                * document lui-même qu'il faut montrer.
-                *
-                * L'écran affichait auparavant un avertissement invitant à
-                * télécharger le fichier — ce qui obligeait le cardiologue à quitter
-                * l'écran d'analyse pour voir ce sur quoi il doit se prononcer.
-                */}
+               * Deux façons de voir le tracé, selon ce que porte le fichier.
+               *
+               * Un export XML donne les échantillons : le tracé est redessiné aux
+               * conventions de l'électrocardiographe, mesurable, avec vitesse et
+               * gain réglables. Un PDF ou une photo porte un dessin : c'est le
+               * document lui-même qu'il faut montrer.
+               *
+               * L'écran affichait auparavant un avertissement invitant à
+               * télécharger le fichier — ce qui obligeait le cardiologue à quitter
+               * l'écran d'analyse pour voir ce sur quoi il doit se prononcer.
+               */}
               {waveform.data?.waveform ? (
                 <EcgWaveformViewer waveform={waveform.data.waveform} />
               ) : (
                 <Stack spacing={1.5}>
-                  <EcgDocumentViewer requestId={request.id} file={request.file} />
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    Document d'origine. Les exports XML des électrocardiographes (HL7
-                    aECG, formats constructeur) sont redessinés ici en 12 dérivations,
-                    avec vitesse et gain réglables.
+                  <EcgDocumentViewer
+                    requestId={request.id}
+                    file={request.file}
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "text.secondary" }}
+                  >
+                    Document d'origine. Les exports XML des électrocardiographes
+                    (HL7 aECG, formats constructeur) sont redessinés ici en 12
+                    dérivations, avec vitesse et gain réglables.
                   </Typography>
                 </Stack>
               )}
@@ -340,7 +397,7 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
               <Stack
                 direction="row"
                 spacing={1}
-                sx={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 1 }}
+                sx={{ justifyContent: "flex-start", flexWrap: "wrap", gap: 1 }}
               >
                 <Button
                   variant="contained"
@@ -364,8 +421,8 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                 </Tooltip>
               </Stack>
 
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {request.file.name} · {request.file.mimeType} ·{' '}
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                {request.file.name} · {request.file.mimeType} ·{" "}
                 {(request.file.sizeBytes / 1024).toFixed(0)} Ko
               </Typography>
             </Stack>
@@ -376,7 +433,10 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
           <SectionCard title="Informations du patient">
             <Stack spacing={2}>
               <DetailItem label="Nom" value={request.patient.fullName} />
-              <DetailItem label="Référence patient" value={request.patient.reference} />
+              <DetailItem
+                label="Référence patient"
+                value={request.patient.reference}
+              />
               <DetailItem label="Âge" value={`${request.patient.age} ans`} />
               <DetailItem label="Sexe" value={request.patient.genderLabel} />
               <Divider />
@@ -389,13 +449,22 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
               />
               <Divider />
               <DetailItem label="Symptômes" value={request.symptoms} />
-              <DetailItem label="Contexte clinique" value={request.clinicalContext ?? '—'} />
-              <DetailItem label="Antécédents" value={request.medicalHistory ?? '—'} />
-              <DetailItem label="Commentaires" value={request.additionalComments ?? '—'} />
+              <DetailItem
+                label="Contexte clinique"
+                value={request.clinicalContext ?? "—"}
+              />
+              <DetailItem
+                label="Antécédents"
+                value={request.medicalHistory ?? "—"}
+              />
+              <DetailItem
+                label="Commentaires"
+                value={request.additionalComments ?? "—"}
+              />
               <Divider />
               <DetailItem
                 label="Soumise par"
-                value={`${request.submittedByName ?? '—'} le ${new Date(request.createdAt).toLocaleString('fr-FR')}`}
+                value={`${request.submittedByName ?? "—"} le ${new Date(request.createdAt).toLocaleString("fr-FR")}`}
               />
             </Stack>
           </SectionCard>
@@ -413,7 +482,8 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                 <InfoPanel title="Analyse en cours">
                   <Stack spacing={1.5} sx={{ mt: 1 }}>
                     <Typography variant="body2">
-                      Le moteur d'analyse traite le tracé. Cette page se met à jour toute seule.
+                      Le moteur d'analyse traite le tracé. Cette page se met à
+                      jour toute seule.
                     </Typography>
                     <LinearProgress />
                   </Stack>
@@ -421,7 +491,10 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
               )}
 
               {!analysisRunning && request.analysis === null && (
-                <InfoPanel tone="warning" title="Analyse automatique indisponible">
+                <InfoPanel
+                  tone="warning"
+                  title="Analyse automatique indisponible"
+                >
                   <Stack spacing={1} sx={{ mt: 1 }}>
                     <Typography variant="body2">
                       {request.analysisFailureReason ??
@@ -429,8 +502,8 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                     </Typography>
                     <Typography variant="caption">
                       {request.analysisAttempts} tentative
-                      {request.analysisAttempts > 1 ? 's' : ''}. Le tracé reste consultable : votre
-                      lecture prime sur l'aide automatique.
+                      {request.analysisAttempts > 1 ? "s" : ""}. Le tracé reste
+                      consultable : votre lecture prime sur l'aide automatique.
                     </Typography>
                   </Stack>
                 </InfoPanel>
@@ -438,33 +511,49 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
 
               {request.analysis && request.analysis.redFlags.length > 0 && (
                 <InfoPanel
-                  tone={hasCriticalFlag(request.analysis.redFlags) ? 'error' : 'warning'}
+                  tone={
+                    hasCriticalFlag(request.analysis.redFlags)
+                      ? "error"
+                      : "warning"
+                  }
                   title={
                     hasCriticalFlag(request.analysis.redFlags)
-                      ? 'Signes d’alarme — demande passée en urgence'
-                      : 'Points de vigilance mesurés'
+                      ? "Signes d’alarme — demande passée en urgence"
+                      : "Points de vigilance mesurés"
                   }
                 >
                   <Stack spacing={1.25} sx={{ mt: 1 }}>
-                    {request.analysis.redFlags.map((code) => {
+                    {request.analysis.redFlags.map(code => {
                       const flag = describeRedFlag(code);
                       return (
                         <Stack key={code} spacing={0.25}>
-                          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            sx={{ alignItems: "center" }}
+                          >
                             <Chip
                               label={flag.label}
                               size="small"
-                              color={flag.severity === 'critical' ? 'error' : 'warning'}
+                              color={
+                                flag.severity === "critical"
+                                  ? "error"
+                                  : "warning"
+                              }
                             />
                           </Stack>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: "text.secondary" }}
+                          >
                             {flag.hint}
                           </Typography>
                         </Stack>
                       );
                     })}
                     <Typography variant="caption">
-                      Détectés par des seuils cliniques, indépendamment du modèle de langage.
+                      Détectés par des seuils cliniques, indépendamment du
+                      modèle de langage.
                     </Typography>
                   </Stack>
                 </InfoPanel>
@@ -473,9 +562,9 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
               {request.analysis && !request.analysis.measuredSignal && (
                 <InfoPanel tone="warning" title="Tracé non lu par l'analyseur">
                   <Typography variant="body2" sx={{ mt: 1 }}>
-                    Aucune mesure n'a pu être extraite du fichier : l'avis ci-dessous s'appuie
-                    uniquement sur le dossier clinique. Rythme et fréquence restent à établir par
-                    votre lecture.
+                    Aucune mesure n'a pu être extraite du fichier : l'avis
+                    ci-dessous s'appuie uniquement sur le dossier clinique.
+                    Rythme et fréquence restent à établir par votre lecture.
                   </Typography>
                 </InfoPanel>
               )}
@@ -483,22 +572,36 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
               {request.analysis && (
                 <InfoPanel title="Interprétation proposée par l'IA">
                   <Stack spacing={1.5} sx={{ mt: 1 }}>
-                    <DetailItem label="Rythme" value={request.analysis.rhythmLabel} />
+                    <DetailItem
+                      label="Rythme"
+                      value={request.analysis.rhythmLabel}
+                    />
                     <DetailItem
                       label="Fréquence cardiaque"
                       value={request.analysis.heartRateLabel}
                     />
                     <DetailItem
                       label={
-                        request.analysis.measuredSignal ? 'Anomalies' : 'Points à vérifier'
+                        request.analysis.measuredSignal
+                          ? "Anomalies"
+                          : "Points à vérifier"
                       }
                       value={
                         request.analysis.anomalies.length === 0 ? (
-                          'Aucune anomalie détectée'
+                          "Aucune anomalie détectée"
                         ) : (
-                          <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
-                            {request.analysis.anomalies.map((anomaly) => (
-                              <Chip key={anomaly} label={anomaly} size="small" color="warning" />
+                          <Stack
+                            direction="row"
+                            spacing={0.5}
+                            sx={{ flexWrap: "wrap", gap: 0.5 }}
+                          >
+                            {request.analysis.anomalies.map(anomaly => (
+                              <Chip
+                                key={anomaly}
+                                label={anomaly}
+                                size="small"
+                                color="warning"
+                              />
                             ))}
                           </Stack>
                         )
@@ -514,10 +617,14 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                       label="Score de confiance"
                       value={request.analysis.confidenceLabel}
                     />
-                    <DetailItem label="Conclusion" value={request.analysis.interpretation} />
+                    <DetailItem
+                      label="Conclusion"
+                      value={request.analysis.interpretation}
+                    />
                     <Divider />
                     <Typography variant="caption">
-                      Modèle {request.analysis.modelVersion} · aide à la décision, non validée.
+                      Modèle {request.analysis.modelVersion} · aide à la
+                      décision, non validée.
                     </Typography>
                   </Stack>
                 </InfoPanel>
@@ -534,11 +641,15 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                       variant="contained"
                       color="success"
                       startIcon={<CheckCircleIcon />}
-                      onClick={() => startDecision('validate')}
+                      onClick={() => startDecision("validate")}
                     >
                       Valider
                     </Button>
-                    <Button fullWidth variant="outlined" onClick={() => startDecision('correct')}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      onClick={() => startDecision("correct")}
+                    >
                       Corriger
                     </Button>
                     <Button
@@ -546,7 +657,7 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                       variant="contained"
                       color="error"
                       startIcon={<CloseIcon />}
-                      onClick={() => startDecision('reject')}
+                      onClick={() => startDecision("reject")}
                     >
                       Rejeter
                     </Button>
@@ -563,7 +674,12 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
               )}
 
               {mine && decision && (
-                <Stack component="form" spacing={2} onSubmit={handleSubmit} noValidate>
+                <Stack
+                  component="form"
+                  spacing={2}
+                  onSubmit={handleSubmit}
+                  noValidate
+                >
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
                     {DECISION_TITLES[decision]}
                   </Typography>
@@ -576,11 +692,16 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                       rows={3}
                       required
                       error={errors.diagnosis === true}
-                      helperText={errors.diagnosis === true ? 'Le diagnostic est obligatoire.' : ' '}
+                      helperText={
+                        errors.diagnosis === true
+                          ? "Le diagnostic est obligatoire."
+                          : " "
+                      }
                       value={diagnosis}
-                      onChange={(e) => {
+                      onChange={e => {
                         setDiagnosis(e.target.value);
-                        if (errors.diagnosis === true) setErrors((p) => ({ ...p, diagnosis: false }));
+                        if (errors.diagnosis === true)
+                          setErrors(p => ({ ...p, diagnosis: false }));
                       }}
                     />
                   )}
@@ -588,7 +709,9 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                   <TextField
                     label="Commentaire"
                     placeholder={
-                      commentRequired ? 'Commentaire obligatoire…' : 'Commentaire optionnel…'
+                      commentRequired
+                        ? "Commentaire obligatoire…"
+                        : "Commentaire optionnel…"
                     }
                     multiline
                     rows={3}
@@ -596,18 +719,23 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                     error={errors.comment === true}
                     helperText={
                       errors.comment === true
-                        ? 'Un commentaire est obligatoire pour cette action.'
-                        : ' '
+                        ? "Un commentaire est obligatoire pour cette action."
+                        : " "
                     }
                     value={comment}
-                    onChange={(e) => {
+                    onChange={e => {
                       setComment(e.target.value);
-                      if (errors.comment === true) setErrors((p) => ({ ...p, comment: false }));
+                      if (errors.comment === true)
+                        setErrors(p => ({ ...p, comment: false }));
                     }}
                   />
 
                   <Stack direction="row" spacing={1}>
-                    <Button fullWidth variant="outlined" onClick={resetDecision}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      onClick={resetDecision}
+                    >
                       Annuler
                     </Button>
                     <Button
@@ -616,11 +744,11 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                       variant="contained"
                       loading={review.isPending}
                       color={
-                        decision === 'validate'
-                          ? 'success'
-                          : decision === 'reject'
-                            ? 'error'
-                            : 'primary'
+                        decision === "validate"
+                          ? "success"
+                          : decision === "reject"
+                            ? "error"
+                            : "primary"
                       }
                     >
                       Confirmer

@@ -1,5 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/apiClient';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/apiClient";
 import type {
   AppNotification,
   AuditEntry,
@@ -13,7 +13,7 @@ import type {
   QueueItem,
   ReviewAction,
   Statistics,
-} from './types';
+} from "./types";
 
 /**
  * Accès aux données de l'API.
@@ -23,25 +23,27 @@ import type {
  * à énumérer les écrans concernés après chaque mutation.
  */
 export const queryKeys = {
-  ecgRequests: ['ecg-requests'] as const,
+  ecgRequests: ["ecg-requests"] as const,
   ecgRequestList: (status?: string, limit?: number) =>
-    ['ecg-requests', 'list', status ?? 'all', limit ?? 'illimite'] as const,
-  ecgRequest: (id: string) => ['ecg-requests', 'detail', id] as const,
-  ecgWaveform: (id: string) => ['ecg-requests', 'waveform', id] as const,
-  ecgDocument: (id: string) => ['ecg-requests', 'document', id] as const,
-  queue: ['ecg-requests', 'queue'] as const,
-  history: ['ecg-requests', 'history'] as const,
-  notifications: ['notifications'] as const,
-  availability: ['availability'] as const,
-  statistics: ['statistics'] as const,
-  users: ['users'] as const,
-  audit: ['audit'] as const,
-  auditIntegrity: ['audit', 'integrity'] as const,
+    ["ecg-requests", "list", status ?? "all", limit ?? "illimite"] as const,
+  ecgRequest: (id: string) => ["ecg-requests", "detail", id] as const,
+  ecgWaveform: (id: string) => ["ecg-requests", "waveform", id] as const,
+  ecgDocument: (id: string) => ["ecg-requests", "document", id] as const,
+  queue: ["ecg-requests", "queue"] as const,
+  history: ["ecg-requests", "history"] as const,
+  notifications: ["notifications"] as const,
+  availability: ["availability"] as const,
+  statistics: ["statistics"] as const,
+  users: ["users"] as const,
+  audit: ["audit"] as const,
+  auditIntegrity: ["audit", "integrity"] as const,
 };
 
 // --- Demandes ECG ------------------------------------------------------------
 
-export function useEcgRequests(options: { status?: string; limit?: number } = {}) {
+export function useEcgRequests(
+  options: { status?: string; limit?: number } = {}
+) {
   const { status, limit } = options;
 
   return useQuery({
@@ -50,29 +52,34 @@ export function useEcgRequests(options: { status?: string; limit?: number } = {}
       // `URLSearchParams` plutôt qu'une interpolation : une valeur contenant un
       // `&` casserait silencieusement la requête.
       const params = new URLSearchParams();
-      if (status) params.set('status', status);
-      if (limit) params.set('limit', String(limit));
-      const suffix = params.size > 0 ? `?${params.toString()}` : '';
+      if (status) params.set("status", status);
+      if (limit) params.set("limit", String(limit));
+      const suffix = params.size > 0 ? `?${params.toString()}` : "";
 
       return api
         .get<{ requests: EcgRequestSummary[] }>(`/ecg-requests${suffix}`)
-        .then((r) => r.requests);
+        .then(r => r.requests);
     },
   });
 }
 
 export function useEcgRequest(id: string | undefined) {
   return useQuery({
-    queryKey: queryKeys.ecgRequest(id ?? ''),
-    queryFn: () => api.get<{ request: EcgRequestFullDetail }>(`/ecg-requests/${id}`).then((r) => r.request),
+    queryKey: queryKeys.ecgRequest(id ?? ""),
+    queryFn: () =>
+      api
+        .get<{ request: EcgRequestFullDetail }>(`/ecg-requests/${id}`)
+        .then(r => r.request),
     enabled: Boolean(id),
     /**
      * Une demande en cours d'analyse change d'état toute seule : on interroge
      * régulièrement tant qu'elle n'est pas stabilisée, puis on arrête.
      */
-    refetchInterval: (query) => {
+    refetchInterval: query => {
       const status = query.state.data?.status;
-      return status === 'PENDING_ANALYSIS' || status === 'ANALYZING' ? 3000 : false;
+      return status === "PENDING_ANALYSIS" || status === "ANALYZING"
+        ? 3000
+        : false;
     },
   });
 }
@@ -86,7 +93,7 @@ export function useEcgRequest(id: string | undefined) {
  */
 export function useEcgWaveform(id: string | undefined) {
   return useQuery({
-    queryKey: queryKeys.ecgWaveform(id ?? ''),
+    queryKey: queryKeys.ecgWaveform(id ?? ""),
     queryFn: () => api.get<EcgWaveformResponse>(`/ecg-requests/${id}/waveform`),
     enabled: Boolean(id),
     staleTime: Infinity,
@@ -96,7 +103,10 @@ export function useEcgWaveform(id: string | undefined) {
 export function useReviewQueue() {
   return useQuery({
     queryKey: queryKeys.queue,
-    queryFn: () => api.get<{ requests: QueueItem[] }>('/ecg-requests/queue').then((r) => r.requests),
+    queryFn: () =>
+      api
+        .get<{ requests: QueueItem[] }>("/ecg-requests/queue")
+        .then(r => r.requests),
     // La file bouge sous l'effet des autres cardiologues.
     refetchInterval: 15_000,
   });
@@ -106,7 +116,9 @@ export function useCardiologistHistory() {
   return useQuery({
     queryKey: queryKeys.history,
     queryFn: () =>
-      api.get<{ requests: EcgRequestSummary[] }>('/ecg-requests/history').then((r) => r.requests),
+      api
+        .get<{ requests: EcgRequestSummary[] }>("/ecg-requests/history")
+        .then(r => r.requests),
   });
 }
 
@@ -123,14 +135,14 @@ export interface SubmitEcgRequestPayload {
   patientLastName: string;
   /** Format ISO `YYYY-MM-DD`. */
   patientBirthDate: string;
-  patientGender: 'M' | 'F';
+  patientGender: "M" | "F";
   /** Motif codé, en minuscules — `palpitations`, `douleur_thoracique`. */
   indication?: string;
   symptoms: string;
   clinicalContext?: string;
   medicalHistory?: string;
   additionalComments?: string;
-  priority: 'normal' | 'urgent';
+  priority: "normal" | "urgent";
 
   /**
    * Contexte de l'enregistrement. Tout est facultatif.
@@ -158,14 +170,14 @@ export function useSubmitEcgRequest() {
     mutationFn: (payload: SubmitEcgRequestPayload) => {
       const form = new FormData();
       for (const [key, value] of Object.entries(payload)) {
-        if (key === 'file' || value === undefined || value === '') continue;
+        if (key === "file" || value === undefined || value === "") continue;
         form.append(key, String(value));
       }
-      form.append('file', payload.file);
+      form.append("file", payload.file);
 
       return api
-        .upload<{ request: EcgRequestDetail }>('/ecg-requests', form)
-        .then((r) => r.request);
+        .upload<{ request: EcgRequestDetail }>("/ecg-requests", form)
+        .then(r => r.request);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.ecgRequests });
@@ -179,7 +191,9 @@ export function useClaimEcgRequest() {
 
   return useMutation({
     mutationFn: (id: string) =>
-      api.post<{ request: EcgRequestDetail }>(`/ecg-requests/${id}/claim`).then((r) => r.request),
+      api
+        .post<{ request: EcgRequestDetail }>(`/ecg-requests/${id}/claim`)
+        .then(r => r.request),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.ecgRequests });
     },
@@ -211,7 +225,7 @@ export function useReviewEcgRequest() {
     mutationFn: ({ id, ...body }: ReviewPayload) =>
       api
         .post<{ request: EcgRequestDetail }>(`/ecg-requests/${id}/review`, body)
-        .then((r) => r.request),
+        .then(r => r.request),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.ecgRequests });
       void queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
@@ -230,7 +244,8 @@ export function useRetryEcgAnalysis() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => api.post<void>(`/ecg-requests/${id}/retry-analysis`),
+    mutationFn: (id: string) =>
+      api.post<void>(`/ecg-requests/${id}/retry-analysis`),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.ecgRequests });
     },
@@ -254,10 +269,13 @@ export function useRequestExternalReview() {
   return useMutation({
     mutationFn: ({ id, reason }: RequestExternalReviewPayload) =>
       api
-        .post<{ request: EcgRequestDetail }>(`/ecg-requests/${id}/request-external-review`, {
-          reason,
-        })
-        .then((r) => r.request),
+        .post<{ request: EcgRequestDetail }>(
+          `/ecg-requests/${id}/request-external-review`,
+          {
+            reason,
+          }
+        )
+        .then(r => r.request),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.ecgRequests });
       void queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
@@ -297,7 +315,7 @@ export function useEcgReport() {
  */
 export function useEcgDocument(id: string | undefined, enabled: boolean) {
   return useQuery({
-    queryKey: queryKeys.ecgDocument(id ?? ''),
+    queryKey: queryKeys.ecgDocument(id ?? ""),
     queryFn: () => api.download(`/ecg-requests/${id}/file/content`),
     enabled: Boolean(id) && enabled,
     // Le fichier d'origine est immuable : rien ne justifie de le retélécharger.
@@ -312,7 +330,9 @@ export function useEcgDocument(id: string | undefined, enabled: boolean) {
 export function useEcgFileUrl() {
   return useMutation({
     mutationFn: (id: string) =>
-      api.get<{ url: string; fileName: string; expiresAt: string }>(`/ecg-requests/${id}/file`),
+      api.get<{ url: string; fileName: string; expiresAt: string }>(
+        `/ecg-requests/${id}/file`
+      ),
   });
 }
 
@@ -322,7 +342,9 @@ export function useNotifications() {
   return useQuery({
     queryKey: queryKeys.notifications,
     queryFn: () =>
-      api.get<{ notifications: AppNotification[]; unreadCount: number }>('/notifications'),
+      api.get<{ notifications: AppNotification[]; unreadCount: number }>(
+        "/notifications"
+      ),
     refetchInterval: 30_000,
   });
 }
@@ -331,15 +353,17 @@ export function useMarkNotificationRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.patch<unknown>(`/notifications/${id}/read`),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
   });
 }
 
 export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post<{ updated: number }>('/notifications/read-all'),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
+    mutationFn: () => api.post<{ updated: number }>("/notifications/read-all"),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
   });
 }
 
@@ -347,7 +371,8 @@ export function useDeleteNotification() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete<void>(`/notifications/${id}`),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications }),
   });
 }
 
@@ -356,7 +381,7 @@ export function useDeleteNotification() {
 export function useAvailability() {
   return useQuery({
     queryKey: queryKeys.availability,
-    queryFn: () => api.get<Availability>('/availability'),
+    queryFn: () => api.get<Availability>("/availability"),
   });
 }
 
@@ -365,22 +390,32 @@ export function useSaveAvailability() {
   return useMutation({
     mutationFn: (body: {
       status: string;
-      slots: { dayOfWeek: number; startMinute: number; endMinute: number; enabled: boolean }[];
-    }) => api.post<Availability>('/availability', body),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.availability }),
+      slots: {
+        dayOfWeek: number;
+        startMinute: number;
+        endMinute: number;
+        enabled: boolean;
+      }[];
+    }) => api.post<Availability>("/availability", body),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: queryKeys.availability }),
   });
 }
 
 // --- Administration ----------------------------------------------------------
 
 export function useStatistics() {
-  return useQuery({ queryKey: queryKeys.statistics, queryFn: () => api.get<Statistics>('/statistics') });
+  return useQuery({
+    queryKey: queryKeys.statistics,
+    queryFn: () => api.get<Statistics>("/statistics"),
+  });
 }
 
 export function useAuditLog() {
   return useQuery({
     queryKey: queryKeys.audit,
-    queryFn: () => api.get<{ entries: AuditEntry[] }>('/audit').then((r) => r.entries),
+    queryFn: () =>
+      api.get<{ entries: AuditEntry[] }>("/audit").then(r => r.entries),
   });
 }
 
@@ -388,23 +423,29 @@ export function useAuditLog() {
 export function useAuditIntegrity() {
   return useQuery({
     queryKey: queryKeys.auditIntegrity,
-    queryFn: () => api.get<AuditIntegrity>('/audit/integrity'),
+    queryFn: () => api.get<AuditIntegrity>("/audit/integrity"),
   });
 }
 
 export function useUsers() {
   return useQuery({
     queryKey: queryKeys.users,
-    queryFn: () => api.get<{ users: ManagedUser[] }>('/users').then((r) => r.users),
+    queryFn: () =>
+      api.get<{ users: ManagedUser[] }>("/users").then(r => r.users),
   });
 }
 
 export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: { email: string; firstName: string; lastName: string; role: string }) =>
-      api.post<{ user: ManagedUser }>('/users', body).then((r) => r.user),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.users }),
+    mutationFn: (body: {
+      email: string;
+      firstName: string;
+      lastName: string;
+      role: string;
+    }) => api.post<{ user: ManagedUser }>("/users", body).then(r => r.user),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users }),
   });
 }
 
@@ -413,15 +454,16 @@ export interface UpdateUserPayload {
   firstName?: string;
   lastName?: string;
   role?: string;
-  status?: 'PENDING_ACTIVATION' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  status?: "PENDING_ACTIVATION" | "ACTIVE" | "INACTIVE" | "SUSPENDED";
 }
 
 export function useUpdateUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...body }: UpdateUserPayload) =>
-      api.patch<{ user: ManagedUser }>(`/users/${id}`, body).then((r) => r.user),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.users }),
+      api.patch<{ user: ManagedUser }>(`/users/${id}`, body).then(r => r.user),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users }),
   });
 }
 
@@ -429,6 +471,7 @@ export function useDeleteUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.delete<void>(`/users/${id}`),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.users }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users }),
   });
 }

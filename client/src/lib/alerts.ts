@@ -1,4 +1,4 @@
-import Swal, { type SweetAlertOptions } from 'sweetalert2';
+import Swal, { type SweetAlertOptions } from "sweetalert2";
 
 /**
  * Alertes et confirmations, sur SweetAlert2 — **au rendu par défaut**.
@@ -38,7 +38,7 @@ function baseOptions(): SweetAlertOptions {
      * L'application a un mode sombre. Sans cela, une boîte blanche s'ouvrirait en
      * pleine nuit au milieu d'un écran sombre, sur un poste de garde.
      */
-    theme: 'auto',
+    theme: "auto",
 
     /**
      * Empêche SweetAlert2 de modifier la hauteur du `body`.
@@ -73,10 +73,10 @@ export interface ToastOptions {
  *   inacceptable quand elle signale un envoi perdu ou un tracé refusé.
  */
 function centeredAlert(
-  icon: 'success' | 'error' | 'warning' | 'info',
-  options: ToastOptions,
+  icon: "success" | "error" | "warning" | "info",
+  options: ToastOptions
 ): void {
-  const mustAcknowledge = icon === 'error' || icon === 'warning';
+  const mustAcknowledge = icon === "error" || icon === "warning";
 
   void Swal.fire({
     ...baseOptions(),
@@ -84,16 +84,16 @@ function centeredAlert(
     title: options.title,
     text: options.text,
     showConfirmButton: mustAcknowledge,
-    confirmButtonText: 'Fermer',
+    confirmButtonText: "Fermer",
     ...(mustAcknowledge
       ? {}
       : {
           timer: 3200,
           timerProgressBar: true,
           // Le survol suspend le compte à rebours : laisse le temps de lire.
-          didOpen: (el) => {
-            el.addEventListener('mouseenter', Swal.stopTimer);
-            el.addEventListener('mouseleave', Swal.resumeTimer);
+          didOpen: el => {
+            el.addEventListener("mouseenter", Swal.stopTimer);
+            el.addEventListener("mouseleave", Swal.resumeTimer);
           },
         }),
   });
@@ -106,10 +106,14 @@ function centeredAlert(
  * d'écran, centre, durée — se fait à cet endroit et nulle part ailleurs.
  */
 export const notify = {
-  success: (title: string, text?: string) => centeredAlert('success', { title, text }),
-  error: (title: string, text?: string) => centeredAlert('error', { title, text }),
-  warning: (title: string, text?: string) => centeredAlert('warning', { title, text }),
-  info: (title: string, text?: string) => centeredAlert('info', { title, text }),
+  success: (title: string, text?: string) =>
+    centeredAlert("success", { title, text }),
+  error: (title: string, text?: string) =>
+    centeredAlert("error", { title, text }),
+  warning: (title: string, text?: string) =>
+    centeredAlert("warning", { title, text }),
+  info: (title: string, text?: string) =>
+    centeredAlert("info", { title, text }),
 };
 
 export interface ConfirmOptions {
@@ -118,7 +122,7 @@ export interface ConfirmOptions {
   confirmLabel?: string;
   cancelLabel?: string;
   /** `danger` pour une action destructrice (suppression, rejet). */
-  tone?: 'danger' | 'default';
+  tone?: "danger" | "default";
 }
 
 /**
@@ -128,18 +132,19 @@ export interface ConfirmOptions {
  * ne doit pas suffire à déclencher une suppression.
  */
 export async function confirm(options: ConfirmOptions): Promise<boolean> {
-  const danger = options.tone === 'danger';
+  const danger = options.tone === "danger";
 
   const result = await Swal.fire({
     ...baseOptions(),
     // L'avertissement pour une action destructrice, la question sinon : c'est
     // l'icône qui porte la différence, sans couleur à redéfinir.
-    icon: danger ? 'warning' : 'question',
+    icon: danger ? "warning" : "question",
     title: options.title,
     text: options.text,
     showCancelButton: true,
-    confirmButtonText: options.confirmLabel ?? (danger ? 'Supprimer' : 'Confirmer'),
-    cancelButtonText: 'Annuler',
+    confirmButtonText:
+      options.confirmLabel ?? (danger ? "Supprimer" : "Confirmer"),
+    cancelButtonText: "Annuler",
     focusCancel: true,
   });
 
@@ -148,16 +153,16 @@ export async function confirm(options: ConfirmOptions): Promise<boolean> {
 
 /** Message bloquant, pour une information qui doit être acquittée. */
 export async function alertDialog(
-  icon: 'success' | 'error' | 'warning' | 'info',
+  icon: "success" | "error" | "warning" | "info",
   title: string,
-  text?: string,
+  text?: string
 ): Promise<void> {
   await Swal.fire({
     ...baseOptions(),
     icon,
     title,
     text,
-    confirmButtonText: 'Fermer',
+    confirmButtonText: "Fermer",
   });
 }
 
@@ -178,23 +183,25 @@ export interface PromptOptions {
  * fait dans la boîte elle-même — refermer puis rouvrir pour signaler un motif
  * trop court ferait perdre ce qui a déjà été écrit.
  */
-export async function promptText(options: PromptOptions): Promise<string | null> {
+export async function promptText(
+  options: PromptOptions
+): Promise<string | null> {
   const minLength = options.minLength ?? 1;
 
   const result = await Swal.fire({
     ...baseOptions(),
-    icon: 'question',
+    icon: "question",
     title: options.title,
     text: options.text,
-    input: 'textarea',
+    input: "textarea",
     inputLabel: options.label,
-    inputPlaceholder: options.placeholder ?? '',
-    inputAttributes: { 'aria-label': options.label },
+    inputPlaceholder: options.placeholder ?? "",
+    inputAttributes: { "aria-label": options.label },
     showCancelButton: true,
-    confirmButtonText: options.confirmLabel ?? 'Confirmer',
-    cancelButtonText: 'Annuler',
-    inputValidator: (value) => {
-      const saisie = value?.trim() ?? '';
+    confirmButtonText: options.confirmLabel ?? "Confirmer",
+    cancelButtonText: "Annuler",
+    inputValidator: value => {
+      const saisie = value?.trim() ?? "";
       if (saisie.length < minLength) {
         return `Précisez le motif (${minLength} caractères minimum).`;
       }
@@ -206,7 +213,7 @@ export async function promptText(options: PromptOptions): Promise<string | null>
 }
 
 /** Indicateur d'attente pour une opération dont on ne connaît pas la durée. */
-export function showLoading(title = 'Traitement en cours…'): void {
+export function showLoading(title = "Traitement en cours…"): void {
   void Swal.fire({
     ...baseOptions(),
     title,

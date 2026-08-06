@@ -11,4 +11,4 @@ export {
   tallFieldSx as authFieldSx,
   tallButtonSx as authButtonSx,
   FORM_CONTROL_HEIGHT as AUTH_CONTROL_HEIGHT,
-} from '@/components/common/formStyles';
+} from "@/components/common/formStyles";

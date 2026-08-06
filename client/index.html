@@ -1,6 +1,5 @@
 <!doctype html>
 <html lang="fr">
-
   <head>
     <meta charset="UTF-8" />
     <!--
@@ -14,15 +13,24 @@
     <title>Plateforme de Télécardiologie Assistée par IA</title>
     <meta
       name="description"
-      content="Soumission, analyse assistée par IA et validation par un cardiologue de tracés électrocardiographiques." />
+      content="Soumission, analyse assistée par IA et validation par un cardiologue de tracés électrocardiographiques."
+    />
 
     <!--
       Teinte de l'interface du navigateur sur mobile, accordée au fond de
       l'application dans chaque mode. Sans cela, la barre d'adresse reste blanche
       au-dessus d'une application en mode sombre.
     -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf5f5" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#110c0b" />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: light)"
+      content="#faf5f5"
+    />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content="#110c0b"
+    />
 
     <!--
       Inter est auto-hébergée (client/src/fonts.css) et non chargée depuis Google
@@ -48,9 +56,11 @@
     <script>
       (function () {
         try {
-          var mode = localStorage.getItem('mui-mode') || 'light';
-          if (mode === 'system') {
-            mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          var mode = localStorage.getItem("mui-mode") || "light";
+          if (mode === "system") {
+            mode = window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
           }
           document.documentElement.classList.add(mode);
         } catch (e) {
@@ -74,5 +84,4 @@
       relève d'une décision explicite — pas d'un résidu de gabarit.
     -->
   </body>
-
 </html>

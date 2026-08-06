@@ -32,10 +32,10 @@ Vite relaie `/api` vers le port 8000. Passer par ce proxy plutôt que d'appeler
 qu'une seule origine, et le cookie de session (`SameSite=Strict`) est donc bien
 transmis.
 
-| Variable | Défaut | Rôle |
-| --- | --- | --- |
-| `VITE_API_TARGET` | `http://localhost:8000` | Cible du proxy Vite en développement |
-| `VITE_API_BASE_URL` | *(vide)* | Origine de l'API. Vide = appels relatifs via le proxy. À renseigner seulement pour viser une autre origine, qui devra alors figurer dans le `CORS_ORIGINS` de l'API. |
+| Variable            | Défaut                  | Rôle                                                                                                                                                                 |
+| ------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_API_TARGET`   | `http://localhost:8000` | Cible du proxy Vite en développement                                                                                                                                 |
+| `VITE_API_BASE_URL` | _(vide)_                | Origine de l'API. Vide = appels relatifs via le proxy. À renseigner seulement pour viser une autre origine, qui devra alors figurer dans le `CORS_ORIGINS` de l'API. |
 
 ### Production
 
@@ -60,10 +60,10 @@ minutes, le temps de vie de l'access token, puis la déconnexion surviendrait sa
 que rien n'indique pourquoi. **C'est le piège de déploiement principal de ce
 projet.**
 
-| Variable | Défaut | Rôle |
-| --- | --- | --- |
-| `API_UPSTREAM` | `http://backend:8000` | Adresse interne de l'API. Résolue à chaque requête, pas figée au démarrage : un redéploiement du backend change son adresse. |
-| `MAX_UPLOAD_SIZE` | `25m` | Limite du relais. La valeur par défaut de nginx est de 1 Mo — sans ce réglage, toute soumission un peu lourde serait refusée par le relais avant d'atteindre l'API et son message explicite. |
+| Variable          | Défaut                | Rôle                                                                                                                                                                                         |
+| ----------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_UPSTREAM`    | `http://backend:8000` | Adresse interne de l'API. Résolue à chaque requête, pas figée au démarrage : un redéploiement du backend change son adresse.                                                                 |
+| `MAX_UPLOAD_SIZE` | `25m`                 | Limite du relais. La valeur par défaut de nginx est de 1 Mo — sans ce réglage, toute soumission un peu lourde serait refusée par le relais avant d'atteindre l'API et son message explicite. |
 
 `VITE_API_BASE_URL` est laissé **vide** à la compilation, ce qui produit des
 appels relatifs. Les variables `VITE_*` sont figées au build et non lues à
@@ -116,12 +116,12 @@ et la file du cardiologue toutes les 15 s — elle bouge sous l'effet des confr�
 
 ### Les trois parcours
 
-| Parcours | Écran | Ce qui est écrit en base |
-| --- | --- | --- |
-| **Soumission** | `NewECGRequest` | Envoi `multipart` du tracé, création de la demande, notification au demandeur, analyse déclenchée en arrière-plan |
-| **Lancement de l'analyse** | automatique, visible depuis `RequestDetail` | Statut `ANALYZING` réel puis `PENDING_REVIEW`, ligne dans `ecg_analyses` |
-| | | *L'analyse est produite par GroqCloud à partir des mesures extraites du fichier ; quand elles manquent, l'écran affiche « Tracé non lu par l'analyseur » et les champs rythme/fréquence restent vides.* |
-| **Validation** | `CardiolQueue` → `ECGAnalysis` | Prise en charge exclusive, décision (`VALIDATED` / `CORRECTED` / `REJECTED`), diagnostic, commentaire, notification et audit |
+| Parcours                   | Écran                                       | Ce qui est écrit en base                                                                                                                                                                                |
+| -------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Soumission**             | `NewECGRequest`                             | Envoi `multipart` du tracé, création de la demande, notification au demandeur, analyse déclenchée en arrière-plan                                                                                       |
+| **Lancement de l'analyse** | automatique, visible depuis `RequestDetail` | Statut `ANALYZING` réel puis `PENDING_REVIEW`, ligne dans `ecg_analyses`                                                                                                                                |
+|                            |                                             | _L'analyse est produite par GroqCloud à partir des mesures extraites du fichier ; quand elles manquent, l'écran affiche « Tracé non lu par l'analyseur » et les champs rythme/fréquence restent vides._ |
+| **Validation**             | `CardiolQueue` → `ECGAnalysis`              | Prise en charge exclusive, décision (`VALIDATED` / `CORRECTED` / `REJECTED`), diagnostic, commentaire, notification et audit                                                                            |
 
 **Visualiseur de tracé.** `client/src/components/ecg/EcgWaveformViewer.tsx` rend
 le signal sur Canvas — 60 000 nœuds dans le DOM rendraient le défilement saccadé.
@@ -158,12 +158,12 @@ rendu pour éviter un flash clair.
 **Alertes** — **toutes** les alertes passent par SweetAlert2, encapsulé dans
 `client/src/lib/alerts.ts` :
 
-| Fonction | Usage |
-| --- | --- |
-| `notify.success / warning / error / info` | Notification en coin d'écran, s'efface seule |
-| `confirm({ tone: 'danger' })` | Action irréversible ; l'annulation est le choix par défaut |
-| `alertDialog(...)` | Message bloquant à acquitter |
-| `showLoading` / `closeLoading` | Opération de durée inconnue |
+| Fonction                                  | Usage                                                      |
+| ----------------------------------------- | ---------------------------------------------------------- |
+| `notify.success / warning / error / info` | Notification en coin d'écran, s'efface seule               |
+| `confirm({ tone: 'danger' })`             | Action irréversible ; l'annulation est le choix par défaut |
+| `alertDialog(...)`                        | Message bloquant à acquitter                               |
+| `showLoading` / `closeLoading`            | Opération de durée inconnue                                |
 
 Les couleurs sont lues sur les variables CSS du thème, donc le mode sombre est
 suivi sans configuration supplémentaire.

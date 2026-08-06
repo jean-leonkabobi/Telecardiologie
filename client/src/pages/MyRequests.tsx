@@ -1,23 +1,24 @@
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Grid from '@mui/material/Grid';
-import Stack from '@mui/material/Stack';
-import VisibilityIcon from '@mui/icons-material/VisibilityOutlined';
-import type { GridColDef } from '@mui/x-data-grid';
-import { useMemo, useState } from 'react';
-import { useLocation } from 'wouter';
+import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
+import Grid from "@mui/material/Grid";
+import Stack from "@mui/material/Stack";
+import VisibilityIcon from "@mui/icons-material/VisibilityOutlined";
+import type { GridColDef } from "@mui/x-data-grid";
+import { useMemo, useState } from "react";
+import { useLocation } from "wouter";
 
-import { DashboardLayout } from '@/components/DashboardLayout';
-import { DataTable } from '@/components/common/DataTable';
-import { PageHeader } from '@/components/common/PageHeader';
-import { QueryBoundary } from '@/components/common/QueryBoundary';
-import { SectionCard } from '@/components/common/SectionCard';
-import { StatCard, type StatColor } from '@/components/common/StatCard';
-import { StatusChip } from '@/components/common/StatusChip';
-import { useEcgRequests } from '@/api/hooks';
-import type { EcgRequestSummary } from '@/api/types';
+import { DashboardLayout } from "@/components/DashboardLayout";
+import { DataTable } from "@/components/common/DataTable";
+import { PageHeader } from "@/components/common/PageHeader";
+import { QueryBoundary } from "@/components/common/QueryBoundary";
+import { SectionCard } from "@/components/common/SectionCard";
+import { StatCard, type StatColor } from "@/components/common/StatCard";
+import { StatusChip } from "@/components/common/StatusChip";
+import { useEcgRequests } from "@/api/hooks";
+import type { EcgRequestSummary } from "@/api/types";
 
-type FilterKey = 'all' | 'urgent' | 'pending' | 'processing' | 'completed' | 'rejected';
+type FilterKey =
+  "all" | "urgent" | "pending" | "processing" | "completed" | "rejected";
 
 /**
  * Prédicat par filtre rapide, exprimé sur l'énumération technique du serveur.
@@ -27,90 +28,109 @@ type FilterKey = 'all' | 'urgent' | 'pending' | 'processing' | 'completed' | 're
  */
 const FILTER_PREDICATE: Record<FilterKey, (r: EcgRequestSummary) => boolean> = {
   all: () => true,
-  urgent: (r) => r.priority === 'URGENT',
-  pending: (r) =>
-    r.status === 'PENDING_ANALYSIS' ||
-    r.status === 'ANALYZING' ||
-    r.status === 'ANALYSIS_FAILED' ||
-    r.status === 'PENDING_REVIEW',
-  processing: (r) => r.status === 'UNDER_REVIEW',
-  completed: (r) => r.status === 'VALIDATED' || r.status === 'CORRECTED',
-  rejected: (r) => r.status === 'REJECTED',
+  urgent: r => r.priority === "URGENT",
+  pending: r =>
+    r.status === "PENDING_ANALYSIS" ||
+    r.status === "ANALYZING" ||
+    r.status === "ANALYSIS_FAILED" ||
+    r.status === "PENDING_REVIEW",
+  processing: r => r.status === "UNDER_REVIEW",
+  completed: r => r.status === "VALIDATED" || r.status === "CORRECTED",
+  rejected: r => r.status === "REJECTED",
 };
 
 const FILTERS: {
   key: FilterKey;
   label: string;
-  color: 'default' | 'primary' | 'error' | 'warning' | 'info' | 'success';
+  color: "default" | "primary" | "error" | "warning" | "info" | "success";
 }[] = [
-  { key: 'all', label: 'Toutes', color: 'primary' },
-  { key: 'urgent', label: 'Urgentes', color: 'error' },
-  { key: 'pending', label: 'En attente', color: 'warning' },
-  { key: 'processing', label: 'En cours', color: 'info' },
-  { key: 'completed', label: 'Conclues', color: 'success' },
-  { key: 'rejected', label: 'Rejetées', color: 'error' },
+  { key: "all", label: "Toutes", color: "primary" },
+  { key: "urgent", label: "Urgentes", color: "error" },
+  { key: "pending", label: "En attente", color: "warning" },
+  { key: "processing", label: "En cours", color: "info" },
+  { key: "completed", label: "Conclues", color: "success" },
+  { key: "rejected", label: "Rejetées", color: "error" },
 ];
 
 export default function MyRequests() {
   const [, navigate] = useLocation();
-  const [filter, setFilter] = useState<FilterKey>('all');
+  const [filter, setFilter] = useState<FilterKey>("all");
   const query = useEcgRequests();
 
   const requests = useMemo(() => query.data ?? [], [query.data]);
-  const rows = useMemo(() => requests.filter(FILTER_PREDICATE[filter]), [requests, filter]);
+  const rows = useMemo(
+    () => requests.filter(FILTER_PREDICATE[filter]),
+    [requests, filter]
+  );
 
   const stats: { label: string; value: number; color: StatColor }[] = [
-    { label: 'Total', value: requests.length, color: 'primary' },
-    { label: 'Urgentes', value: requests.filter(FILTER_PREDICATE.urgent).length, color: 'error' },
-    { label: 'En attente', value: requests.filter(FILTER_PREDICATE.pending).length, color: 'warning' },
-    { label: 'Conclues', value: requests.filter(FILTER_PREDICATE.completed).length, color: 'success' },
+    { label: "Total", value: requests.length, color: "primary" },
+    {
+      label: "Urgentes",
+      value: requests.filter(FILTER_PREDICATE.urgent).length,
+      color: "error",
+    },
+    {
+      label: "En attente",
+      value: requests.filter(FILTER_PREDICATE.pending).length,
+      color: "warning",
+    },
+    {
+      label: "Conclues",
+      value: requests.filter(FILTER_PREDICATE.completed).length,
+      color: "success",
+    },
   ];
 
   const columns: GridColDef<EcgRequestSummary>[] = [
-    { field: 'reference', headerName: 'Référence', width: 120 },
+    { field: "reference", headerName: "Référence", width: 120 },
     {
-      field: 'patient',
-      headerName: 'Patient',
+      field: "patient",
+      headerName: "Patient",
       flex: 1,
       minWidth: 150,
       valueGetter: (_value, row) => row.patient.fullName,
     },
     {
-      field: 'createdAt',
-      headerName: 'Date',
+      field: "createdAt",
+      headerName: "Date",
       width: 150,
       valueGetter: (value: string) => new Date(value),
-      valueFormatter: (value: Date) => value.toLocaleDateString('fr-FR'),
+      valueFormatter: (value: Date) => value.toLocaleDateString("fr-FR"),
     },
     {
-      field: 'indicationLabel',
-      headerName: 'Motif',
+      field: "indicationLabel",
+      headerName: "Motif",
       flex: 1,
       minWidth: 150,
     },
     {
-      field: 'priorityLabel',
-      headerName: 'Priorité',
+      field: "priorityLabel",
+      headerName: "Priorité",
       width: 110,
-      renderCell: ({ row }) => <StatusChip status={row.priorityLabel} statusKey={row.priority} />,
+      renderCell: ({ row }) => (
+        <StatusChip status={row.priorityLabel} statusKey={row.priority} />
+      ),
     },
     {
-      field: 'statusLabel',
-      headerName: 'Statut',
+      field: "statusLabel",
+      headerName: "Statut",
       flex: 1,
       minWidth: 190,
-      renderCell: ({ row }) => <StatusChip status={row.statusLabel} statusKey={row.status} />,
+      renderCell: ({ row }) => (
+        <StatusChip status={row.statusLabel} statusKey={row.status} />
+      ),
     },
     {
-      field: 'finalDiagnosis',
-      headerName: 'Diagnostic retenu',
+      field: "finalDiagnosis",
+      headerName: "Diagnostic retenu",
       flex: 1,
       minWidth: 180,
-      valueGetter: (value: string | null) => value ?? '—',
+      valueGetter: (value: string | null) => value ?? "—",
     },
     {
-      field: 'actions',
-      headerName: 'Action',
+      field: "actions",
+      headerName: "Action",
       width: 110,
       sortable: false,
       filterable: false,
@@ -142,9 +162,13 @@ export default function MyRequests() {
         >
           <Stack spacing={3}>
             <Grid container spacing={2}>
-              {stats.map((stat) => (
+              {stats.map(stat => (
                 <Grid key={stat.label} size={{ xs: 12, sm: 6, lg: 3 }}>
-                  <StatCard label={stat.label} value={stat.value} color={stat.color} />
+                  <StatCard
+                    label={stat.label}
+                    value={stat.value}
+                    color={stat.color}
+                  />
                 </Grid>
               ))}
             </Grid>
@@ -153,13 +177,17 @@ export default function MyRequests() {
               title="Demandes"
               subheader="Utilisez la barre d'outils pour rechercher, trier ou exporter"
               action={
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  {FILTERS.map((f) => (
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ flexWrap: "wrap", gap: 1 }}
+                >
+                  {FILTERS.map(f => (
                     <Chip
                       key={f.key}
                       label={`${f.label} (${requests.filter(FILTER_PREDICATE[f.key]).length})`}
-                      color={filter === f.key ? f.color : 'default'}
-                      variant={filter === f.key ? 'filled' : 'outlined'}
+                      color={filter === f.key ? f.color : "default"}
+                      variant={filter === f.key ? "filled" : "outlined"}
                       // Le remplissage signale le filtre actif à l'œil ; `aria-pressed`
                       // le signale au lecteur d'écran, qui ne voit ni couleur ni contour.
                       aria-pressed={filter === f.key}
@@ -174,7 +202,11 @@ export default function MyRequests() {
                 rows={rows}
                 columns={columns}
                 height={520}
-                initialState={{ sorting: { sortModel: [{ field: 'createdAt', sort: 'desc' }] } }}
+                initialState={{
+                  sorting: {
+                    sortModel: [{ field: "createdAt", sort: "desc" }],
+                  },
+                }}
               />
             </SectionCard>
           </Stack>

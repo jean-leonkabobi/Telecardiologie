@@ -7,18 +7,18 @@
  */
 
 export type EcgRequestStatus =
-  | 'PENDING_ANALYSIS'
-  | 'ANALYZING'
-  | 'ANALYSIS_FAILED'
-  | 'PENDING_REVIEW'
-  | 'UNDER_REVIEW'
-  | 'VALIDATED'
-  | 'CORRECTED'
-  | 'REJECTED';
+  | "PENDING_ANALYSIS"
+  | "ANALYZING"
+  | "ANALYSIS_FAILED"
+  | "PENDING_REVIEW"
+  | "UNDER_REVIEW"
+  | "VALIDATED"
+  | "CORRECTED"
+  | "REJECTED";
 
-export type EcgPriority = 'NORMAL' | 'URGENT';
-export type ReviewDecisionValue = 'VALIDATED' | 'CORRECTED' | 'REJECTED';
-export type ReviewAction = 'validate' | 'correct' | 'reject';
+export type EcgPriority = "NORMAL" | "URGENT";
+export type ReviewDecisionValue = "VALIDATED" | "CORRECTED" | "REJECTED";
+export type ReviewAction = "validate" | "correct" | "reject";
 
 export interface PatientSnapshot {
   reference: string;
@@ -27,7 +27,7 @@ export interface PatientSnapshot {
   fullName: string;
   birthDate: string;
   age: number;
-  gender: 'M' | 'F';
+  gender: "M" | "F";
   genderLabel: string;
 }
 
@@ -39,16 +39,16 @@ export interface PatientSnapshot {
  * valeurs, elle, sert au formulaire — d'où `ECG_INDICATION_OPTIONS`.
  */
 export const ECG_INDICATION_VALUES = [
-  'DOULEUR_THORACIQUE',
-  'DYSPNEE',
-  'PALPITATIONS',
-  'SYNCOPE',
-  'MALAISE',
-  'BILAN_PREOPERATOIRE',
-  'SUIVI_TRAITEMENT',
-  'HYPERTENSION',
-  'DEPISTAGE',
-  'AUTRE',
+  "DOULEUR_THORACIQUE",
+  "DYSPNEE",
+  "PALPITATIONS",
+  "SYNCOPE",
+  "MALAISE",
+  "BILAN_PREOPERATOIRE",
+  "SUIVI_TRAITEMENT",
+  "HYPERTENSION",
+  "DEPISTAGE",
+  "AUTRE",
 ] as const;
 
 export type EcgIndicationValue = (typeof ECG_INDICATION_VALUES)[number];
@@ -244,7 +244,7 @@ export interface AvailabilitySlot {
 }
 
 export interface Availability {
-  status: 'AVAILABLE' | 'BUSY' | 'OFFLINE';
+  status: "AVAILABLE" | "BUSY" | "OFFLINE";
   statusLabel: string;
   slots: AvailabilitySlot[];
   enabledSlotCount: number;
@@ -318,7 +318,7 @@ export interface ManagedUser {
   name: string;
   role: string;
   roleLabel: string;
-  status: 'PENDING_ACTIVATION' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  status: "PENDING_ACTIVATION" | "ACTIVE" | "INACTIVE" | "SUSPENDED";
   statusLabel: string;
   lastLoginAt: string | null;
   createdAt: string;
@@ -326,7 +326,7 @@ export interface ManagedUser {
 
 /** Formate une durée en millisecondes pour l'affichage. */
 export function formatDuration(ms: number | null): string {
-  if (ms === null || !Number.isFinite(ms)) return '—';
+  if (ms === null || !Number.isFinite(ms)) return "—";
 
   const minutes = Math.round(ms / 60_000);
   if (minutes < 60) return `${minutes} min`;

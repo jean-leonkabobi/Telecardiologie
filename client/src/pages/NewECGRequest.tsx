@@ -1,49 +1,49 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Divider from '@mui/material/Divider';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Grid from '@mui/material/Grid';
-import InputAdornment from '@mui/material/InputAdornment';
-import LinearProgress from '@mui/material/LinearProgress';
-import MenuItem from '@mui/material/MenuItem';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Step from '@mui/material/Step';
-import StepLabel from '@mui/material/StepLabel';
-import Stepper from '@mui/material/Stepper';
-import Switch from '@mui/material/Switch';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import useMediaQuery from '@mui/material/useMediaQuery';
-import { useTheme } from '@mui/material/styles';
-import UploadFileIcon from '@mui/icons-material/UploadFileOutlined';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { zodResolver } from '@hookform/resolvers/zod';
-import dayjs, { type Dayjs } from 'dayjs';
-import type { ReactNode } from 'react';
-import { useState } from 'react';
-import { Controller, useForm, type Path } from 'react-hook-form';
-import { useLocation } from 'wouter';
-import { z } from 'zod';
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Divider from "@mui/material/Divider";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Grid from "@mui/material/Grid";
+import InputAdornment from "@mui/material/InputAdornment";
+import LinearProgress from "@mui/material/LinearProgress";
+import MenuItem from "@mui/material/MenuItem";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
+import Step from "@mui/material/Step";
+import StepLabel from "@mui/material/StepLabel";
+import Stepper from "@mui/material/Stepper";
+import Switch from "@mui/material/Switch";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
+import UploadFileIcon from "@mui/icons-material/UploadFileOutlined";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { zodResolver } from "@hookform/resolvers/zod";
+import dayjs, { type Dayjs } from "dayjs";
+import type { ReactNode } from "react";
+import { useState } from "react";
+import { Controller, useForm, type Path } from "react-hook-form";
+import { useLocation } from "wouter";
+import { z } from "zod";
 
-import { DashboardLayout } from '@/components/DashboardLayout';
-import { DetailItem } from '@/components/common/DetailItem';
-import { InfoPanel } from '@/components/common/InfoPanel';
-import { PageHeader } from '@/components/common/PageHeader';
-import { tallFieldSx } from '@/components/common/formStyles';
+import { DashboardLayout } from "@/components/DashboardLayout";
+import { DetailItem } from "@/components/common/DetailItem";
+import { InfoPanel } from "@/components/common/InfoPanel";
+import { PageHeader } from "@/components/common/PageHeader";
+import { tallFieldSx } from "@/components/common/formStyles";
 import {
   checkEcgFile,
   ECG_ACCEPT_ATTRIBUTE,
   ECG_FORMATS_LABEL,
   ECG_MAX_FILE_SIZE_MB,
   formatFileSize,
-} from '@/api/ecgFormats';
-import { notify } from '@/lib/alerts';
-import { useSubmitEcgRequest } from '@/api/hooks';
-import { ApiError } from '@/lib/apiClient';
+} from "@/api/ecgFormats";
+import { notify } from "@/lib/alerts";
+import { useSubmitEcgRequest } from "@/api/hooks";
+import { ApiError } from "@/lib/apiClient";
 
 /**
  * Motifs d'examen proposés, dans l'ordre de fréquence en consultation.
@@ -53,17 +53,25 @@ import { ApiError } from '@/lib/apiClient';
  * `suggereUrgence` reproduit la règle du domaine — une douleur thoracique ou une
  * syncope sont des urgences jusqu'à preuve du contraire.
  */
-const INDICATIONS: { value: string; label: string; suggereUrgence?: boolean }[] = [
-  { value: 'douleur_thoracique', label: 'Douleur thoracique', suggereUrgence: true },
-  { value: 'palpitations', label: 'Palpitations' },
-  { value: 'dyspnee', label: 'Dyspnée' },
-  { value: 'syncope', label: 'Syncope', suggereUrgence: true },
-  { value: 'malaise', label: 'Malaise' },
-  { value: 'hypertension', label: 'Hypertension artérielle' },
-  { value: 'suivi_traitement', label: 'Suivi de traitement' },
-  { value: 'bilan_preoperatoire', label: 'Bilan préopératoire' },
-  { value: 'depistage', label: 'Dépistage' },
-  { value: 'autre', label: 'Autre motif' },
+const INDICATIONS: {
+  value: string;
+  label: string;
+  suggereUrgence?: boolean;
+}[] = [
+  {
+    value: "douleur_thoracique",
+    label: "Douleur thoracique",
+    suggereUrgence: true,
+  },
+  { value: "palpitations", label: "Palpitations" },
+  { value: "dyspnee", label: "Dyspnée" },
+  { value: "syncope", label: "Syncope", suggereUrgence: true },
+  { value: "malaise", label: "Malaise" },
+  { value: "hypertension", label: "Hypertension artérielle" },
+  { value: "suivi_traitement", label: "Suivi de traitement" },
+  { value: "bilan_preoperatoire", label: "Bilan préopératoire" },
+  { value: "depistage", label: "Dépistage" },
+  { value: "autre", label: "Autre motif" },
 ];
 
 /** Entier facultatif saisi au clavier : la chaîne vide vaut « non renseigné ». */
@@ -71,35 +79,41 @@ const entierFacultatif = (min: number, max: number, libelle: string) =>
   z
     .string()
     .trim()
-    .refine((v) => v === '' || /^\d+$/.test(v), 'Saisissez un nombre entier')
-    .refine((v) => v === '' || (Number(v) >= min && Number(v) <= max), `${libelle} : ${min} à ${max}`);
+    .refine(v => v === "" || /^\d+$/.test(v), "Saisissez un nombre entier")
+    .refine(
+      v => v === "" || (Number(v) >= min && Number(v) <= max),
+      `${libelle} : ${min} à ${max}`
+    );
 
 const requestSchema = z
   .object({
     // Pas d'identifiant patient : le serveur le dérive de l'identité saisie.
-    firstName: z.string().trim().min(1, 'Le prénom est requis'),
-    lastName: z.string().trim().min(1, 'Le nom est requis'),
+    firstName: z.string().trim().min(1, "Le prénom est requis"),
+    lastName: z.string().trim().min(1, "Le nom est requis"),
     dateOfBirth: z
-      .custom<Dayjs>((v) => Boolean(v), 'La date de naissance est requise')
-      .refine((d) => d.isValid(), 'Date invalide')
-      .refine((d) => !d.isAfter(), 'La date ne peut pas être dans le futur'),
-    gender: z.enum(['M', 'F'], { message: 'Sélectionnez le sexe du patient' }),
-    weightKg: entierFacultatif(2, 400, 'Poids en kg'),
-    heightCm: entierFacultatif(30, 250, 'Taille en cm'),
+      .custom<Dayjs>(v => Boolean(v), "La date de naissance est requise")
+      .refine(d => d.isValid(), "Date invalide")
+      .refine(d => !d.isAfter(), "La date ne peut pas être dans le futur"),
+    gender: z.enum(["M", "F"], { message: "Sélectionnez le sexe du patient" }),
+    weightKg: entierFacultatif(2, 400, "Poids en kg"),
+    heightCm: entierFacultatif(30, 250, "Taille en cm"),
 
     indication: z.string().min(1, "Sélectionnez le motif de l'examen"),
-    priority: z.enum(['normal', 'urgent']),
+    priority: z.enum(["normal", "urgent"]),
     recordedAt: z
       .custom<Dayjs | null>(() => true)
-      .refine((d) => !d || d.isValid(), 'Date et heure invalides')
-      .refine((d) => !d || !d.isAfter(dayjs()), "L'enregistrement ne peut pas être dans le futur"),
+      .refine(d => !d || d.isValid(), "Date et heure invalides")
+      .refine(
+        d => !d || !d.isAfter(dayjs()),
+        "L'enregistrement ne peut pas être dans le futur"
+      ),
     deviceModel: z.string().trim().max(160),
-    systolicBp: entierFacultatif(50, 300, 'Systolique'),
-    diastolicBp: entierFacultatif(20, 200, 'Diastolique'),
+    systolicBp: entierFacultatif(50, 300, "Systolique"),
+    diastolicBp: entierFacultatif(20, 200, "Diastolique"),
     hasPacemaker: z.boolean(),
     currentMedication: z.string().trim().max(2000),
 
-    symptoms: z.string().trim().min(1, 'Décrivez les symptômes observés'),
+    symptoms: z.string().trim().min(1, "Décrivez les symptômes observés"),
     clinicalContext: z.string(),
     medicalHistory: z.string(),
     additionalComments: z.string(),
@@ -108,28 +122,36 @@ const requestSchema = z
   // inversion de saisie, que le serveur refuserait de toute façon. La signaler
   // ici évite un aller-retour et un message d'erreur en fin de parcours.
   .refine(
-    (v) =>
-      v.systolicBp === '' || v.diastolicBp === '' || Number(v.diastolicBp) < Number(v.systolicBp),
-    { path: ['diastolicBp'], message: 'Doit être inférieure à la systolique' },
+    v =>
+      v.systolicBp === "" ||
+      v.diastolicBp === "" ||
+      Number(v.diastolicBp) < Number(v.systolicBp),
+    { path: ["diastolicBp"], message: "Doit être inférieure à la systolique" }
   );
 
 type RequestValues = z.infer<typeof requestSchema>;
 
-const STEPS = ['Patient', 'Examen', 'Contexte clinique', 'Tracé ECG', 'Récapitulatif'];
+const STEPS = [
+  "Patient",
+  "Examen",
+  "Contexte clinique",
+  "Tracé ECG",
+  "Récapitulatif",
+];
 
 /** Champs validés à chaque étape avant d'autoriser « Suivant ». */
 const STEP_FIELDS: Path<RequestValues>[][] = [
-  ['firstName', 'lastName', 'dateOfBirth', 'gender', 'weightKg', 'heightCm'],
+  ["firstName", "lastName", "dateOfBirth", "gender", "weightKg", "heightCm"],
   [
-    'indication',
-    'priority',
-    'recordedAt',
-    'deviceModel',
-    'systolicBp',
-    'diastolicBp',
-    'currentMedication',
+    "indication",
+    "priority",
+    "recordedAt",
+    "deviceModel",
+    "systolicBp",
+    "diastolicBp",
+    "currentMedication",
   ],
-  ['symptoms', 'clinicalContext', 'medicalHistory', 'additionalComments'],
+  ["symptoms", "clinicalContext", "medicalHistory", "additionalComments"],
   [],
   [],
 ];
@@ -153,13 +175,16 @@ function Section({
   return (
     <Stack spacing={1.5}>
       <Box>
-        <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.08em' }}>
+        <Typography
+          variant="overline"
+          sx={{ color: "text.secondary", letterSpacing: "0.08em" }}
+        >
           {titre}
         </Typography>
         <Divider sx={{ mt: 0.5 }} />
       </Box>
       {aide && (
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
           {aide}
         </Typography>
       )}
@@ -172,7 +197,7 @@ export default function NewECGRequest() {
   const [, navigate] = useLocation();
   const [activeStep, setActiveStep] = useState(0);
   const theme = useTheme();
-  const compact = useMediaQuery(theme.breakpoints.down('sm'));
+  const compact = useMediaQuery(theme.breakpoints.down("sm"));
   const [ecgFile, setEcgFile] = useState<File | null>(null);
   const submitRequest = useSubmitEcgRequest();
 
@@ -186,59 +211,63 @@ export default function NewECGRequest() {
     formState: { errors },
   } = useForm<RequestValues>({
     resolver: zodResolver(requestSchema),
-    mode: 'onTouched',
+    mode: "onTouched",
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      weightKg: '',
-      heightCm: '',
-      indication: '',
-      priority: 'normal',
+      firstName: "",
+      lastName: "",
+      weightKg: "",
+      heightCm: "",
+      indication: "",
+      priority: "normal",
       recordedAt: null,
-      deviceModel: '',
-      systolicBp: '',
-      diastolicBp: '',
+      deviceModel: "",
+      systolicBp: "",
+      diastolicBp: "",
       hasPacemaker: false,
-      currentMedication: '',
-      symptoms: '',
-      clinicalContext: '',
-      medicalHistory: '',
-      additionalComments: '',
+      currentMedication: "",
+      symptoms: "",
+      clinicalContext: "",
+      medicalHistory: "",
+      additionalComments: "",
     },
   });
 
   // Surveillés pour l'avertissement d'urgence : `watch` et non `getValues`, qui
   // ne provoque pas de nouveau rendu.
-  const indicationChoisie = watch('indication');
-  const prioriteChoisie = watch('priority');
+  const indicationChoisie = watch("indication");
+  const prioriteChoisie = watch("priority");
   const urgenceSuggeree =
-    INDICATIONS.find((i) => i.value === indicationChoisie)?.suggereUrgence === true &&
-    prioriteChoisie === 'normal';
+    INDICATIONS.find(i => i.value === indicationChoisie)?.suggereUrgence ===
+      true && prioriteChoisie === "normal";
 
   const handleNext = async () => {
     const valid = await trigger(STEP_FIELDS[activeStep]);
-    if (valid) setActiveStep((s) => s + 1);
+    if (valid) setActiveStep(s => s + 1);
   };
 
   const onSubmit = async (values: RequestValues): Promise<void> => {
     // Le fichier vit hors du formulaire : l'étape du tracé ne le validait pas, on
     // s'assure ici qu'il est bien présent avant d'envoyer.
     if (!ecgFile) {
-      notify.error('Fichier manquant', "Sélectionnez le tracé ECG à l'étape « Tracé ECG ».");
+      notify.error(
+        "Fichier manquant",
+        "Sélectionnez le tracé ECG à l'étape « Tracé ECG »."
+      );
       setActiveStep(3);
       return;
     }
 
     // Les entiers facultatifs voyagent en nombre, ou pas du tout : envoyer une
     // chaîne vide ferait enregistrer un zéro.
-    const nombre = (v: string): number | undefined => (v === '' ? undefined : Number(v));
+    const nombre = (v: string): number | undefined =>
+      v === "" ? undefined : Number(v);
 
     try {
       const request = await submitRequest.mutateAsync({
         // `patientRef` n'est pas transmis : le serveur le dérive de l'identité.
         patientFirstName: values.firstName,
         patientLastName: values.lastName,
-        patientBirthDate: values.dateOfBirth.format('YYYY-MM-DD'),
+        patientBirthDate: values.dateOfBirth.format("YYYY-MM-DD"),
         patientGender: values.gender,
         indication: values.indication,
         symptoms: values.symptoms,
@@ -259,24 +288,26 @@ export default function NewECGRequest() {
 
       notify.success(
         `Demande ${request.reference} enregistrée`,
-        "L'analyse automatique démarre, vous serez prévenu dès qu'elle est terminée.",
+        "L'analyse automatique démarre, vous serez prévenu dès qu'elle est terminée."
       );
       navigate(`/request/${request.id}`);
     } catch (error) {
       const message =
-        error instanceof ApiError ? error.message : "L'envoi de la demande a échoué.";
-      notify.error('Envoi impossible', message);
+        error instanceof ApiError
+          ? error.message
+          : "L'envoi de la demande a échoué.";
+      notify.error("Envoi impossible", message);
     }
   };
 
   const values = getValues();
 
   /** Réglages partagés par tous les contrôles monolignes : une seule hauteur. */
-  const champ = { size: 'medium' as const, sx: tallFieldSx };
+  const champ = { size: "medium" as const, sx: tallFieldSx };
 
   return (
     <DashboardLayout>
-      <Box sx={{ maxWidth: 860, mx: 'auto' }}>
+      <Box sx={{ maxWidth: 860, mx: "auto" }}>
         <Stack spacing={3}>
           <PageHeader
             title="Nouvelle demande d'analyse ECG"
@@ -284,14 +315,14 @@ export default function NewECGRequest() {
           />
 
           {/**
-            * Deux présentations de l'avancement, selon la largeur.
-            *
-            * Cinq libellés côte à côte tiennent sur un écran d'ordinateur. Sur un
-            * téléphone de 360 points, ils se réduisaient à quelques lettres
-            * coupées : un fil d'étapes illisible occupe de la place sans rien
-            * apprendre. Une barre dit la même chose en une ligne, le nom de
-            * l'étape courante étant déjà dans le sous-titre.
-            */}
+           * Deux présentations de l'avancement, selon la largeur.
+           *
+           * Cinq libellés côte à côte tiennent sur un écran d'ordinateur. Sur un
+           * téléphone de 360 points, ils se réduisaient à quelques lettres
+           * coupées : un fil d'étapes illisible occupe de la place sans rien
+           * apprendre. Une barre dit la même chose en une ligne, le nom de
+           * l'étape courante étant déjà dans le sous-titre.
+           */}
           {compact ? (
             <LinearProgress
               variant="determinate"
@@ -301,7 +332,7 @@ export default function NewECGRequest() {
             />
           ) : (
             <Stepper activeStep={activeStep} alternativeLabel>
-              {STEPS.map((label) => (
+              {STEPS.map(label => (
                 <Step key={label}>
                   <StepLabel>{label}</StepLabel>
                 </Step>
@@ -311,14 +342,25 @@ export default function NewECGRequest() {
 
           <Card>
             <CardContent sx={{ p: { xs: 2.5, sm: 4 } }}>
-              <Stack component="form" spacing={3} noValidate onSubmit={handleSubmit(onSubmit)}>
+              <Stack
+                component="form"
+                spacing={3}
+                noValidate
+                onSubmit={handleSubmit(onSubmit)}
+              >
                 {activeStep === 0 && (
                   <Stack spacing={3}>
                     <Box>
-                      <Typography variant="h2">Informations du patient</Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                      <Typography variant="h2">
+                        Informations du patient
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{ color: "text.secondary", mt: 0.5 }}
+                      >
                         L'identifiant patient est attribué automatiquement à
-                        l'enregistrement, à partir de l'identité saisie ci-dessous.
+                        l'enregistrement, à partir de l'identité saisie
+                        ci-dessous.
                       </Typography>
                     </Box>
 
@@ -335,8 +377,8 @@ export default function NewECGRequest() {
                             placeholder="Awa"
                             {...champ}
                             error={Boolean(errors.firstName)}
-                            helperText={errors.firstName?.message ?? ' '}
-                            {...register('firstName')}
+                            helperText={errors.firstName?.message ?? " "}
+                            {...register("firstName")}
                           />
                         </Grid>
                         <Grid size={{ xs: 12, sm: 6 }}>
@@ -345,8 +387,8 @@ export default function NewECGRequest() {
                             placeholder="Diop"
                             {...champ}
                             error={Boolean(errors.lastName)}
-                            helperText={errors.lastName?.message ?? ' '}
-                            {...register('lastName')}
+                            helperText={errors.lastName?.message ?? " "}
+                            {...register("lastName")}
                           />
                         </Grid>
                       </Grid>
@@ -368,7 +410,8 @@ export default function NewECGRequest() {
                                   textField: {
                                     ...champ,
                                     error: Boolean(errors.dateOfBirth),
-                                    helperText: errors.dateOfBirth?.message ?? ' ',
+                                    helperText:
+                                      errors.dateOfBirth?.message ?? " ",
                                     onBlur: field.onBlur,
                                   },
                                 }}
@@ -385,11 +428,11 @@ export default function NewECGRequest() {
                                 select
                                 label="Sexe"
                                 {...champ}
-                                value={field.value ?? ''}
+                                value={field.value ?? ""}
                                 onChange={field.onChange}
                                 onBlur={field.onBlur}
                                 error={Boolean(errors.gender)}
-                                helperText={errors.gender?.message ?? ' '}
+                                helperText={errors.gender?.message ?? " "}
                               >
                                 <MenuItem value="M">Masculin</MenuItem>
                                 <MenuItem value="F">Féminin</MenuItem>
@@ -413,12 +456,16 @@ export default function NewECGRequest() {
                             {...champ}
                             slotProps={{
                               input: {
-                                endAdornment: <InputAdornment position="end">kg</InputAdornment>,
+                                endAdornment: (
+                                  <InputAdornment position="end">
+                                    kg
+                                  </InputAdornment>
+                                ),
                               },
                             }}
                             error={Boolean(errors.weightKg)}
-                            helperText={errors.weightKg?.message ?? ' '}
-                            {...register('weightKg')}
+                            helperText={errors.weightKg?.message ?? " "}
+                            {...register("weightKg")}
                           />
                         </Grid>
                         <Grid size={{ xs: 6, sm: 3 }}>
@@ -429,12 +476,16 @@ export default function NewECGRequest() {
                             {...champ}
                             slotProps={{
                               input: {
-                                endAdornment: <InputAdornment position="end">cm</InputAdornment>,
+                                endAdornment: (
+                                  <InputAdornment position="end">
+                                    cm
+                                  </InputAdornment>
+                                ),
                               },
                             }}
                             error={Boolean(errors.heightCm)}
-                            helperText={errors.heightCm?.message ?? ' '}
-                            {...register('heightCm')}
+                            helperText={errors.heightCm?.message ?? " "}
+                            {...register("heightCm")}
                           />
                         </Grid>
                       </Grid>
@@ -446,10 +497,14 @@ export default function NewECGRequest() {
                   <Stack spacing={3}>
                     <Box>
                       <Typography variant="h2">Examen</Typography>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                        Les conditions de l'enregistrement changent la lecture du tracé :
-                        une bradycardie sous bêtabloquant est un effet attendu, des
-                        spicules chez un porteur de stimulateur ne sont pas un artefact.
+                      <Typography
+                        variant="body2"
+                        sx={{ color: "text.secondary", mt: 0.5 }}
+                      >
+                        Les conditions de l'enregistrement changent la lecture
+                        du tracé : une bradycardie sous bêtabloquant est un
+                        effet attendu, des spicules chez un porteur de
+                        stimulateur ne sont pas un artefact.
                       </Typography>
                     </Box>
 
@@ -466,9 +521,9 @@ export default function NewECGRequest() {
                                 {...champ}
                                 {...field}
                                 error={Boolean(errors.indication)}
-                                helperText={errors.indication?.message ?? ' '}
+                                helperText={errors.indication?.message ?? " "}
                               >
-                                {INDICATIONS.map((i) => (
+                                {INDICATIONS.map(i => (
                                   <MenuItem key={i.value} value={i.value}>
                                     {i.label}
                                   </MenuItem>
@@ -482,7 +537,13 @@ export default function NewECGRequest() {
                             name="priority"
                             control={control}
                             render={({ field }) => (
-                              <TextField select label="Priorité" {...champ} {...field} helperText=" ">
+                              <TextField
+                                select
+                                label="Priorité"
+                                {...champ}
+                                {...field}
+                                helperText=" "
+                              >
                                 <MenuItem value="normal">Normale</MenuItem>
                                 <MenuItem value="urgent">Urgente</MenuItem>
                               </TextField>
@@ -495,10 +556,14 @@ export default function NewECGRequest() {
                           patient, lui pas. Mais un motif urgent envoyé en routine
                           peut attendre des heures dans la file. */}
                       {urgenceSuggeree && (
-                        <InfoPanel tone="warning" title="Ce motif appelle souvent une urgence">
-                          Une douleur thoracique ou une syncope sont des urgences jusqu'à
-                          preuve du contraire. La demande est actuellement en priorité
-                          normale — passez-la en urgente si l'état du patient le justifie.
+                        <InfoPanel
+                          tone="warning"
+                          title="Ce motif appelle souvent une urgence"
+                        >
+                          Une douleur thoracique ou une syncope sont des
+                          urgences jusqu'à preuve du contraire. La demande est
+                          actuellement en priorité normale — passez-la en
+                          urgente si l'état du patient le justifie.
                         </InfoPanel>
                       )}
                     </Section>
@@ -524,7 +589,8 @@ export default function NewECGRequest() {
                                   textField: {
                                     ...champ,
                                     error: Boolean(errors.recordedAt),
-                                    helperText: errors.recordedAt?.message ?? ' ',
+                                    helperText:
+                                      errors.recordedAt?.message ?? " ",
                                     onBlur: field.onBlur,
                                   },
                                 }}
@@ -538,14 +604,18 @@ export default function NewECGRequest() {
                             placeholder="Schiller Cardiovit FT-1"
                             {...champ}
                             helperText=" "
-                            {...register('deviceModel')}
+                            {...register("deviceModel")}
                           />
                         </Grid>
                       </Grid>
                     </Section>
 
                     <Section titre="Constantes et porteur d'appareil">
-                      <Grid container spacing={2} sx={{ alignItems: 'flex-start' }}>
+                      <Grid
+                        container
+                        spacing={2}
+                        sx={{ alignItems: "flex-start" }}
+                      >
                         <Grid size={{ xs: 6, sm: 3 }}>
                           <TextField
                             label="Systolique"
@@ -554,12 +624,16 @@ export default function NewECGRequest() {
                             {...champ}
                             slotProps={{
                               input: {
-                                endAdornment: <InputAdornment position="end">mmHg</InputAdornment>,
+                                endAdornment: (
+                                  <InputAdornment position="end">
+                                    mmHg
+                                  </InputAdornment>
+                                ),
                               },
                             }}
                             error={Boolean(errors.systolicBp)}
-                            helperText={errors.systolicBp?.message ?? ' '}
-                            {...register('systolicBp')}
+                            helperText={errors.systolicBp?.message ?? " "}
+                            {...register("systolicBp")}
                           />
                         </Grid>
                         <Grid size={{ xs: 6, sm: 3 }}>
@@ -570,12 +644,16 @@ export default function NewECGRequest() {
                             {...champ}
                             slotProps={{
                               input: {
-                                endAdornment: <InputAdornment position="end">mmHg</InputAdornment>,
+                                endAdornment: (
+                                  <InputAdornment position="end">
+                                    mmHg
+                                  </InputAdornment>
+                                ),
                               },
                             }}
                             error={Boolean(errors.diastolicBp)}
-                            helperText={errors.diastolicBp?.message ?? ' '}
-                            {...register('diastolicBp')}
+                            helperText={errors.diastolicBp?.message ?? " "}
+                            {...register("diastolicBp")}
                           />
                         </Grid>
                         <Grid size={{ xs: 12, sm: 6 }}>
@@ -591,7 +669,9 @@ export default function NewECGRequest() {
                                 control={
                                   <Switch
                                     checked={field.value}
-                                    onChange={(e) => field.onChange(e.target.checked)}
+                                    onChange={e =>
+                                      field.onChange(e.target.checked)
+                                    }
                                   />
                                 }
                                 label="Porteur d'un stimulateur ou d'un défibrillateur"
@@ -607,7 +687,7 @@ export default function NewECGRequest() {
                         multiline
                         rows={2}
                         helperText="Bêtabloquants, antiarythmiques, digitaliques et psychotropes modifient le tracé."
-                        {...register('currentMedication')}
+                        {...register("currentMedication")}
                       />
                     </Section>
                   </Stack>
@@ -623,8 +703,11 @@ export default function NewECGRequest() {
                       multiline
                       rows={3}
                       error={Boolean(errors.symptoms)}
-                      helperText={errors.symptoms?.message ?? 'Seul champ obligatoire de cette étape.'}
-                      {...register('symptoms')}
+                      helperText={
+                        errors.symptoms?.message ??
+                        "Seul champ obligatoire de cette étape."
+                      }
+                      {...register("symptoms")}
                     />
 
                     <TextField
@@ -632,7 +715,7 @@ export default function NewECGRequest() {
                       placeholder="Circonstances de survenue, examen d'entrée, suivi…"
                       multiline
                       rows={3}
-                      {...register('clinicalContext')}
+                      {...register("clinicalContext")}
                     />
 
                     <TextField
@@ -640,7 +723,7 @@ export default function NewECGRequest() {
                       placeholder="Antécédents cardiovasculaires, facteurs de risque…"
                       multiline
                       rows={3}
-                      {...register('medicalHistory')}
+                      {...register("medicalHistory")}
                     />
 
                     <TextField
@@ -648,7 +731,7 @@ export default function NewECGRequest() {
                       placeholder="Informations additionnelles pour le cardiologue…"
                       multiline
                       rows={2}
-                      {...register('additionalComments')}
+                      {...register("additionalComments")}
                     />
                   </Stack>
                 )}
@@ -661,19 +744,25 @@ export default function NewECGRequest() {
                       variant="outlined"
                       sx={{
                         p: 4,
-                        textAlign: 'center',
-                        borderStyle: 'dashed',
+                        textAlign: "center",
+                        borderStyle: "dashed",
                         borderWidth: 2,
-                        '&:hover': { borderColor: 'primary.main' },
+                        "&:hover": { borderColor: "primary.main" },
                       }}
                     >
-                      <UploadFileIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+                      <UploadFileIcon
+                        sx={{ fontSize: 48, color: "text.disabled", mb: 1 }}
+                      />
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>
                         Sélectionnez votre fichier ECG
                       </Typography>
                       <Typography
                         variant="caption"
-                        sx={{ color: 'text.secondary', display: 'block', mb: 2 }}
+                        sx={{
+                          color: "text.secondary",
+                          display: "block",
+                          mb: 2,
+                        }}
                       >
                         {ECG_FORMATS_LABEL} · {ECG_MAX_FILE_SIZE_MB} Mo maximum
                       </Typography>
@@ -683,23 +772,23 @@ export default function NewECGRequest() {
                           type="file"
                           hidden
                           accept={ECG_ACCEPT_ATTRIBUTE}
-                          onChange={(e) => {
+                          onChange={e => {
                             const file = e.target.files?.[0] ?? null;
                             // Le champ est réinitialisé pour que resélectionner le
                             // même fichier après un refus déclenche bien `change`.
-                            e.target.value = '';
+                            e.target.value = "";
 
                             if (!file) return;
 
                             const probleme = checkEcgFile(file);
                             if (probleme) {
                               setEcgFile(null);
-                              notify.error('Fichier refusé', probleme);
+                              notify.error("Fichier refusé", probleme);
                               return;
                             }
 
                             setEcgFile(file);
-                            notify.success('Fichier sélectionné', file.name);
+                            notify.success("Fichier sélectionné", file.name);
                           }}
                         />
                       </Button>
@@ -710,7 +799,10 @@ export default function NewECGRequest() {
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
                           {ecgFile.name}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: "text.secondary" }}
+                        >
                           {formatFileSize(ecgFile.size)}
                         </Typography>
                       </InfoPanel>
@@ -719,18 +811,20 @@ export default function NewECGRequest() {
                     <InfoPanel title="Ce que chaque format permet">
                       <Stack spacing={0.5} sx={{ mt: 0.5 }}>
                         <Typography variant="body2">
-                          <strong>XML ou CSV d'échantillons</strong> — le tracé est redessiné
-                          dans l'application aux conventions 25 mm/s et 10 mm/mV, mesurable
-                          au compas, et reproduit dans le compte rendu.
+                          <strong>XML ou CSV d'échantillons</strong> — le tracé
+                          est redessiné dans l'application aux conventions 25
+                          mm/s et 10 mm/mV, mesurable au compas, et reproduit
+                          dans le compte rendu.
                         </Typography>
                         <Typography variant="body2">
-                          <strong>PDF</strong> — le document est affiché tel quel et annexé au
-                          compte rendu. Les mesures sont lues dans son texte si l'appareil
-                          les y a écrites.
+                          <strong>PDF</strong> — le document est affiché tel
+                          quel et annexé au compte rendu. Les mesures sont lues
+                          dans son texte si l'appareil les y a écrites.
                         </Typography>
                         <Typography variant="body2">
-                          <strong>Image scannée</strong> — lisible par le cardiologue, mais
-                          l'analyse automatique n'en tirera aucune mesure.
+                          <strong>Image scannée</strong> — lisible par le
+                          cardiologue, mais l'analyse automatique n'en tirera
+                          aucune mesure.
                         </Typography>
                       </Stack>
                     </InfoPanel>
@@ -739,75 +833,88 @@ export default function NewECGRequest() {
 
                 {activeStep === 4 && (
                   <Stack spacing={2.5}>
-                    <Typography variant="h2">Récapitulatif de la demande</Typography>
+                    <Typography variant="h2">
+                      Récapitulatif de la demande
+                    </Typography>
 
                     <Grid container spacing={2}>
                       {[
-                        { label: 'Patient', value: `${values.firstName} ${values.lastName}` },
                         {
-                          label: 'Naissance et sexe',
+                          label: "Patient",
+                          value: `${values.firstName} ${values.lastName}`,
+                        },
+                        {
+                          label: "Naissance et sexe",
                           value: `${
                             values.dateOfBirth?.isValid()
-                              ? values.dateOfBirth.format('DD/MM/YYYY')
-                              : '—'
-                          } · ${values.gender === 'M' ? 'Masculin' : 'Féminin'}`,
+                              ? values.dateOfBirth.format("DD/MM/YYYY")
+                              : "—"
+                          } · ${values.gender === "M" ? "Masculin" : "Féminin"}`,
                         },
                         {
-                          label: 'Identifiant patient',
-                          value: 'Attribué automatiquement à l’enregistrement',
+                          label: "Identifiant patient",
+                          value: "Attribué automatiquement à l’enregistrement",
                         },
                         {
-                          label: 'Morphologie',
+                          label: "Morphologie",
                           value:
                             [
                               values.weightKg && `${values.weightKg} kg`,
                               values.heightCm && `${values.heightCm} cm`,
                             ]
                               .filter(Boolean)
-                              .join(' · ') || 'Non renseignée',
+                              .join(" · ") || "Non renseignée",
                         },
                         {
                           label: "Motif de l'examen",
                           value:
-                            INDICATIONS.find((i) => i.value === values.indication)?.label ?? '—',
+                            INDICATIONS.find(i => i.value === values.indication)
+                              ?.label ?? "—",
                         },
                         {
-                          label: 'Priorité',
-                          value: values.priority === 'urgent' ? 'Urgente' : 'Normale',
+                          label: "Priorité",
+                          value:
+                            values.priority === "urgent"
+                              ? "Urgente"
+                              : "Normale",
                         },
                         {
-                          label: 'Enregistré le',
+                          label: "Enregistré le",
                           value: values.recordedAt?.isValid()
-                            ? values.recordedAt.format('DD/MM/YYYY à HH:mm')
-                            : 'Non précisé',
+                            ? values.recordedAt.format("DD/MM/YYYY à HH:mm")
+                            : "Non précisé",
                         },
                         {
-                          label: 'Tension artérielle',
+                          label: "Tension artérielle",
                           value:
                             values.systolicBp || values.diastolicBp
-                              ? `${values.systolicBp || '—'}/${values.diastolicBp || '—'} mmHg`
-                              : 'Non mesurée',
+                              ? `${values.systolicBp || "—"}/${values.diastolicBp || "—"} mmHg`
+                              : "Non mesurée",
                         },
                         {
-                          label: 'Stimulateur / défibrillateur',
-                          value: values.hasPacemaker ? 'Oui' : 'Non',
+                          label: "Stimulateur / défibrillateur",
+                          value: values.hasPacemaker ? "Oui" : "Non",
                         },
                         {
-                          label: 'Traitement en cours',
-                          value: values.currentMedication || 'Aucun renseigné',
+                          label: "Traitement en cours",
+                          value: values.currentMedication || "Aucun renseigné",
                         },
-                        { label: 'Symptômes', value: values.symptoms || '—' },
+                        { label: "Symptômes", value: values.symptoms || "—" },
                         {
-                          label: 'Fichier ECG',
+                          label: "Fichier ECG",
                           value: ecgFile
                             ? `${ecgFile.name} · ${formatFileSize(ecgFile.size)}`
-                            : 'Aucun fichier',
+                            : "Aucun fichier",
                         },
-                      ].map((row) => (
+                      ].map(row => (
                         <Grid key={row.label} size={{ xs: 12, sm: 6 }}>
                           <Paper
                             variant="outlined"
-                            sx={{ p: 2, bgcolor: 'surfaceMuted', height: '100%' }}
+                            sx={{
+                              p: 2,
+                              bgcolor: "surfaceMuted",
+                              height: "100%",
+                            }}
                           >
                             <DetailItem label={row.label} value={row.value} />
                           </Paper>
@@ -819,7 +926,10 @@ export default function NewECGRequest() {
 
                 <Stack direction="row" spacing={2} sx={{ pt: 1 }}>
                   {activeStep > 0 && (
-                    <Button variant="outlined" onClick={() => setActiveStep((s) => s - 1)}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => setActiveStep(s => s - 1)}
+                    >
                       Précédent
                     </Button>
                   )}

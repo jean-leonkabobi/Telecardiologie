@@ -1,13 +1,13 @@
-import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import type { ReactNode } from 'react';
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import type { ReactNode } from "react";
 
-import { ApiError } from '@/lib/apiClient';
-import { EmptyState } from './EmptyState';
-import { InfoPanel } from './InfoPanel';
+import { ApiError } from "@/lib/apiClient";
+import { EmptyState } from "./EmptyState";
+import { InfoPanel } from "./InfoPanel";
 
 interface QueryBoundaryProps {
   isLoading: boolean;
@@ -40,13 +40,13 @@ export function QueryBoundary({
         // `minHeight` réserve la place du contenu à venir. Sans elle, la page se
         // contractait autour du seul indicateur puis se dépliait d'un coup : les
         // boutons de l'en-tête sautaient sous le curseur au moment du clic.
-        sx={{ alignItems: 'center', justifyContent: 'center', minHeight: 320 }}
+        sx={{ alignItems: "center", justifyContent: "center", minHeight: 320 }}
         // Annonce l'arrivée du contenu aux lecteurs d'écran, sans interrompre.
         aria-busy="true"
         aria-live="polite"
       >
         <CircularProgress aria-label="Chargement des données" />
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+        <Typography variant="body2" sx={{ color: "text.secondary" }}>
           Chargement…
         </Typography>
       </Stack>
@@ -57,14 +57,19 @@ export function QueryBoundary({
     const message =
       error instanceof ApiError
         ? error.message
-        : 'Une erreur est survenue lors du chargement des données.';
+        : "Une erreur est survenue lors du chargement des données.";
 
     return (
       <InfoPanel tone="error" title="Chargement impossible">
-        <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
+        <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
           <Typography variant="body2">{message}</Typography>
           {onRetry && (
-            <Button size="small" variant="outlined" startIcon={<RefreshIcon />} onClick={onRetry}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={onRetry}
+            >
               Réessayer
             </Button>
           )}

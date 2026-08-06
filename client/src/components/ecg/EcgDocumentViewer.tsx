@@ -1,20 +1,20 @@
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import IconButton from '@mui/material/IconButton';
-import LinearProgress from '@mui/material/LinearProgress';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import CloseIcon from '@mui/icons-material/Close';
-import OpenInFullIcon from '@mui/icons-material/OpenInFull';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import { useEffect, useMemo, useState } from 'react';
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
+import LinearProgress from "@mui/material/LinearProgress";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import CloseIcon from "@mui/icons-material/Close";
+import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import { useEffect, useMemo, useState } from "react";
 
-import { useEcgDocument } from '@/api/hooks';
-import { ApiError } from '@/lib/apiClient';
+import { useEcgDocument } from "@/api/hooks";
+import { ApiError } from "@/lib/apiClient";
 
 /**
  * Au-delà, l'affichage attend un geste explicite.
@@ -26,11 +26,11 @@ import { ApiError } from '@/lib/apiClient';
 const CHARGEMENT_AUTOMATIQUE_MAX = 4 * 1024 * 1024;
 
 /** Ce que le navigateur sait afficher, et par quel moyen. */
-type Rendu = 'pdf' | 'image' | 'texte' | 'aucun';
+type Rendu = "pdf" | "image" | "texte" | "aucun";
 
 function renduPour(mimeType: string): Rendu {
-  if (mimeType === 'application/pdf') return 'pdf';
-  if (mimeType === 'image/png' || mimeType === 'image/jpeg') return 'image';
+  if (mimeType === "application/pdf") return "pdf";
+  if (mimeType === "image/png" || mimeType === "image/jpeg") return "image";
   /**
    * XML, texte et CSV sont affichés **comme du texte**, jamais dans un cadre.
    *
@@ -40,14 +40,14 @@ function renduPour(mimeType: string): Rendu {
    * — que React échappe — supprime la question au lieu de la contenir.
    */
   if (
-    mimeType === 'application/xml' ||
-    mimeType === 'text/xml' ||
-    mimeType === 'text/plain' ||
-    mimeType === 'text/csv'
+    mimeType === "application/xml" ||
+    mimeType === "text/xml" ||
+    mimeType === "text/plain" ||
+    mimeType === "text/csv"
   ) {
-    return 'texte';
+    return "texte";
   }
-  return 'aucun';
+  return "aucun";
 }
 
 interface EcgDocumentViewerProps {
@@ -71,11 +71,15 @@ interface EcgDocumentViewerProps {
  * document arrive sur notre origine, l'affichage ne dépend plus des en-têtes du
  * stockage, et aucune signature valide ne traîne dans le DOM.
  */
-export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumentViewerProps) {
+export function EcgDocumentViewer({
+  requestId,
+  file,
+  hauteur = 460,
+}: EcgDocumentViewerProps) {
   const rendu = renduPour(file.mimeType);
   const lourd = file.sizeBytes > CHARGEMENT_AUTOMATIQUE_MAX;
 
-  const [demande, setDemande] = useState(!lourd && rendu !== 'aucun');
+  const [demande, setDemande] = useState(!lourd && rendu !== "aucun");
   const [pleinEcran, setPleinEcran] = useState(false);
   const [texte, setTexte] = useState<string | null>(null);
 
@@ -85,7 +89,7 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
    * pas, puis casserait silencieusement le jour où quelqu'un y ajoute un
    * `document.createElement`.
    */
-  const fichier = useEcgDocument(requestId, demande && rendu !== 'aucun');
+  const fichier = useEcgDocument(requestId, demande && rendu !== "aucun");
 
   /**
    * L'objet URL est créé ici et libéré au démontage.
@@ -95,7 +99,7 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
    * rechargement de la page. Lié au composant, son cycle de vie est explicite.
    */
   const objectUrl = useMemo(() => {
-    if (!fichier.data || rendu === 'texte' || rendu === 'aucun') return null;
+    if (!fichier.data || rendu === "texte" || rendu === "aucun") return null;
     return URL.createObjectURL(fichier.data.body);
   }, [fichier.data, rendu]);
 
@@ -106,9 +110,9 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
 
   // Le texte est décodé une fois, à l'arrivée du blob.
   useEffect(() => {
-    if (rendu !== 'texte' || !fichier.data) return;
+    if (rendu !== "texte" || !fichier.data) return;
     let vivant = true;
-    void fichier.data.body.text().then((contenu) => {
+    void fichier.data.body.text().then(contenu => {
       if (vivant) setTexte(contenu);
     });
     return () => {
@@ -116,23 +120,30 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
     };
   }, [fichier.data, rendu]);
 
-  if (rendu === 'aucun') {
+  if (rendu === "aucun") {
     return (
       <Alert severity="info" variant="outlined">
-        Ce format ({file.mimeType}) ne s'affiche pas dans le navigateur. Téléchargez le
-        fichier source pour l'ouvrir avec votre outil habituel.
+        Ce format ({file.mimeType}) ne s'affiche pas dans le navigateur.
+        Téléchargez le fichier source pour l'ouvrir avec votre outil habituel.
       </Alert>
     );
   }
 
   if (!demande) {
     return (
-      <Stack spacing={1.5} sx={{ alignItems: 'center', py: 3 }}>
-        <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center' }}>
-          Document de {(file.sizeBytes / 1024 / 1024).toFixed(1)} Mo — chargé sur demande pour
-          ne pas retarder l'affichage de l'analyse.
+      <Stack spacing={1.5} sx={{ alignItems: "center", py: 3 }}>
+        <Typography
+          variant="body2"
+          sx={{ color: "text.secondary", textAlign: "center" }}
+        >
+          Document de {(file.sizeBytes / 1024 / 1024).toFixed(1)} Mo — chargé
+          sur demande pour ne pas retarder l'affichage de l'analyse.
         </Typography>
-        <Button variant="contained" startIcon={<VisibilityIcon />} onClick={() => setDemande(true)}>
+        <Button
+          variant="contained"
+          startIcon={<VisibilityIcon />}
+          onClick={() => setDemande(true)}
+        >
           Visualiser le document
         </Button>
       </Stack>
@@ -143,7 +154,7 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
     return (
       <Stack spacing={1}>
         <LinearProgress />
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
           Chargement du document…
         </Typography>
       </Stack>
@@ -156,7 +167,11 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
         severity="error"
         variant="outlined"
         action={
-          <Button size="small" color="inherit" onClick={() => void fichier.refetch()}>
+          <Button
+            size="small"
+            color="inherit"
+            onClick={() => void fichier.refetch()}
+          >
             Réessayer
           </Button>
         }
@@ -169,45 +184,45 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
   }
 
   const corps = (plein: boolean) => {
-    const h = plein ? '100%' : hauteur;
+    const h = plein ? "100%" : hauteur;
 
-    if (rendu === 'pdf') {
+    if (rendu === "pdf") {
       return (
         <Box
           component="iframe"
           src={objectUrl ?? undefined}
           title={`Tracé ECG — ${file.name}`}
           sx={{
-            width: '100%',
+            width: "100%",
             height: h,
-            border: 'none',
+            border: "none",
             borderRadius: plein ? 0 : 1,
-            bgcolor: '#ffffff',
+            bgcolor: "#ffffff",
           }}
         />
       );
     }
 
-    if (rendu === 'image') {
+    if (rendu === "image") {
       return (
         <Box
           sx={{
             height: h,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             // Fond blanc : un tracé est imprimé sur papier clair, l'afficher sur
             // un fond sombre en inverserait la lecture.
-            bgcolor: '#ffffff',
+            bgcolor: "#ffffff",
             borderRadius: plein ? 0 : 1,
-            overflow: 'auto',
+            overflow: "auto",
           }}
         >
           <Box
             component="img"
             src={objectUrl ?? undefined}
             alt={`Tracé ECG — ${file.name}`}
-            sx={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+            sx={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
           />
         </Box>
       );
@@ -220,19 +235,19 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
           height: h,
           m: 0,
           p: 1.5,
-          overflow: 'auto',
+          overflow: "auto",
           borderRadius: plein ? 0 : 1,
-          bgcolor: 'action.hover',
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+          bgcolor: "action.hover",
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
           fontSize: 12,
           lineHeight: 1.5,
           // Un export d'électrocardiographe tient sur une seule ligne de plusieurs
           // milliers de caractères : sans retour à la ligne, rien n'est lisible.
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-all',
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-all",
         }}
       >
-        {texte ?? 'Décodage…'}
+        {texte ?? "Décodage…"}
       </Box>
     );
   };
@@ -241,7 +256,11 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
     <Stack spacing={1}>
       {corps(false)}
 
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: "center", justifyContent: "center" }}
+      >
         <Button
           size="small"
           variant="outlined"
@@ -254,13 +273,18 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
 
       <Dialog open={pleinEcran} onClose={() => setPleinEcran(false)} fullScreen>
         <DialogTitle
-          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+          }}
         >
           <Stack>
             <Typography variant="h6" component="span">
               {file.name}
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
               {file.mimeType} · {(file.sizeBytes / 1024).toFixed(0)} Ko
             </Typography>
           </Stack>
@@ -270,7 +294,7 @@ export function EcgDocumentViewer({ requestId, file, hauteur = 460 }: EcgDocumen
         </DialogTitle>
         {/* `p: 0` et hauteur pleine : le document occupe tout l'espace disponible,
             ce qui est le seul intérêt du plein écran pour un tracé. */}
-        <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column' }}>
+        <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column" }}>
           {corps(true)}
         </DialogContent>
       </Dialog>

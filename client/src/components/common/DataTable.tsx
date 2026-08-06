@@ -1,8 +1,11 @@
-import Box from '@mui/material/Box';
-import { DataGrid } from '@mui/x-data-grid';
-import type { DataGridProps, GridValidRowModel } from '@mui/x-data-grid';
+import Box from "@mui/material/Box";
+import { DataGrid } from "@mui/x-data-grid";
+import type { DataGridProps, GridValidRowModel } from "@mui/x-data-grid";
 
-interface DataTableProps<R extends GridValidRowModel> extends Omit<DataGridProps<R>, 'autoHeight'> {
+interface DataTableProps<R extends GridValidRowModel> extends Omit<
+  DataGridProps<R>,
+  "autoHeight"
+> {
   /** Hauteur du conteneur. Le DataGrid a besoin d'une hauteur explicite. */
   height?: number | string;
 }
@@ -21,7 +24,7 @@ export function DataTable<R extends GridValidRowModel>({
   ...rest
 }: DataTableProps<R>) {
   return (
-    <Box sx={{ width: '100%', height }}>
+    <Box sx={{ width: "100%", height }}>
       <DataGrid<R>
         showToolbar={showToolbar}
         pageSizeOptions={pageSizeOptions}
@@ -42,12 +45,15 @@ export function DataTable<R extends GridValidRowModel>({
            * `:focus:not(:focus-visible)` cible le cas qui gênait : le contour
            * apparu après un clic de souris.
            */
-          '& .MuiDataGrid-cell:focus:not(:focus-visible)': { outline: 'none' },
-          '& .MuiDataGrid-columnHeader:focus:not(:focus-visible)': { outline: 'none' },
-          '& .MuiDataGrid-cell:focus-visible, & .MuiDataGrid-columnHeader:focus-visible': {
-            outline: (t) => `2px solid ${t.palette.primary.main}`,
-            outlineOffset: -2,
+          "& .MuiDataGrid-cell:focus:not(:focus-visible)": { outline: "none" },
+          "& .MuiDataGrid-columnHeader:focus:not(:focus-visible)": {
+            outline: "none",
           },
+          "& .MuiDataGrid-cell:focus-visible, & .MuiDataGrid-columnHeader:focus-visible":
+            {
+              outline: t => `2px solid ${t.palette.primary.main}`,
+              outlineOffset: -2,
+            },
         }}
         {...rest}
       />

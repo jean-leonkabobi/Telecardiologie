@@ -1,11 +1,11 @@
-import Box from '@mui/material/Box';
-import IconButton from '@mui/material/IconButton';
-import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import type { ReactNode } from 'react';
-import { useLocation } from 'wouter';
+import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import type { ReactNode } from "react";
+import { useLocation } from "wouter";
 
 interface PageHeaderProps {
   title: string;
@@ -24,16 +24,28 @@ interface PageHeaderProps {
 }
 
 /** En-tête de page : retour éventuel, titre, sous-titre et zone d'actions. */
-export function PageHeader({ title, subtitle, action, backTo }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  subtitle,
+  action,
+  backTo,
+}: PageHeaderProps) {
   const [, navigate] = useLocation();
 
   return (
     <Stack
-      direction={{ xs: 'column', sm: 'row' }}
+      direction={{ xs: "column", sm: "row" }}
       spacing={2}
-      sx={{ justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'flex-start' } }}
+      sx={{
+        justifyContent: "space-between",
+        alignItems: { xs: "stretch", sm: "flex-start" },
+      }}
     >
-      <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start', minWidth: 0 }}>
+      <Stack
+        direction="row"
+        spacing={1.5}
+        sx={{ alignItems: "flex-start", minWidth: 0 }}
+      >
         {backTo && (
           <Tooltip title={backTo.label}>
             <IconButton
@@ -51,7 +63,10 @@ export function PageHeader({ title, subtitle, action, backTo }: PageHeaderProps)
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="h1">{title}</Typography>
           {subtitle && (
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+            <Typography
+              variant="body2"
+              sx={{ color: "text.secondary", mt: 0.5 }}
+            >
               {subtitle}
             </Typography>
           )}
