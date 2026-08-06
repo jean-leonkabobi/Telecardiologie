@@ -23,6 +23,13 @@ concurrency:
 permissions:
   contents: read
   security-events: write
+  # `actions: read` et `packages: read` sont requis par le job `codeql` de
+  # `security.yml` (github/codeql-action). Les permissions accordées à un
+  # workflow appelé via `workflow_call` ne peuvent jamais dépasser celles
+  # déclarées ici, au niveau de l'appelant — sans ces deux lignes, GitHub
+  # refuse l'exécution avec « is only allowed 'actions: none, packages: none' ».
+  actions: read
+  packages: read
 
 jobs:
   ci:
