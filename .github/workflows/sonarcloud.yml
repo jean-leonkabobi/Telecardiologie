@@ -1,6 +1,8 @@
 # Qualité de code — SonarCloud. Voir
 # telecardiologie-backend/.github/workflows/sonarcloud.yml pour la logique
-# détaillée (optionnel, ignoré tant que SONAR_TOKEN n'est pas configuré).
+# détaillée (optionnel, ignoré tant que SONAR_TOKEN n'est pas configuré, ou
+# tant que `sonar.organization` n'a pas été renseigné dans
+# sonar-project.properties).
 
 name: SonarCloud
 
@@ -12,20 +14,27 @@ jobs:
     name: Analyse SonarCloud
     runs-on: ubuntu-latest
     steps:
-      - name: Vérifier que SONAR_TOKEN est configuré
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Deux conditions, pas une : un `SONAR_TOKEN` configuré sans que
+      # `sonar.organization` ait été renseigné dans sonar-project.properties
+      # échoue quand même, avec `Organization key '<organisation>' does not
+      # exist.` — un échec dur plutôt qu'un simple avertissement, moins lisible
+      # que celui-ci.
+      - name: Vérifier que SonarCloud est configuré
         id: check
         run: |
           if [ -z "${{ secrets.SONAR_TOKEN }}" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
             echo "::notice::SONAR_TOKEN absent — analyse SonarCloud ignorée. Voir DEVOPS.md pour l'activer (facultatif)."
+          elif grep -q "sonar.organization=<organisation>" sonar-project.properties 2>/dev/null; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::sonar-project.properties contient encore le placeholder <organisation> — analyse SonarCloud ignorée. Remplacez-le par votre clé d'organisation SonarCloud (voir DEVOPS.md, section Qualité de code)."
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
-
-      - uses: actions/checkout@v4
-        if: steps.check.outputs.configured == 'true'
-        with:
-          fetch-depth: 0
 
       - name: Analyse SonarCloud
         if: steps.check.outputs.configured == 'true'
