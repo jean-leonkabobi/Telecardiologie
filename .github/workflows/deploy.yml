@@ -1,30 +1,39 @@
-# Déploiement continu du frontend sur Render (offre gratuite).
+# Déploiement continu du frontend sur Coolify (auto-hébergé).
 #
-# Workflow réutilisable, appelé par `pipeline.yml` après le succès de
-# `docker.yml`. Voir telecardiologie-backend/.github/workflows/deploy.yml
-# pour le mécanisme détaillé.
+# Même principe que le backend — voir
+# telecardiologie-backend/.github/workflows/deploy.yml pour le détail complet
+# du mécanisme (API Coolify, `GET /api/v1/deploy?uuid=...`).
 #
-# Rappel de configuration Render pour ce service (voir DEVOPS.md) :
-# `API_UPSTREAM` doit pointer vers l'URL publique du service backend Render,
-# sans quoi nginx renvoie 502.
+# Rappel de configuration Coolify pour cette ressource (voir DEVOPS.md) :
+# `API_UPSTREAM` doit pointer vers l'URL publique de la ressource backend
+# Coolify, sans quoi nginx renvoie 502.
 
-name: Deploy (Render)
+name: Deploy (Coolify)
 
 on:
   workflow_call:
 
 jobs:
   deploy:
-    name: Déclencher le déploiement Render
+    name: Déclencher le déploiement Coolify
     runs-on: ubuntu-latest
     steps:
-      - name: Appeler le Deploy Hook Render
+      - name: Vérifier que les secrets Coolify sont configurés
         run: |
-          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}" ]; then
-            echo "::error::Le secret RENDER_DEPLOY_HOOK_FRONTEND n'est pas configuré. Voir DEVOPS.md."
+          missing=""
+          [ -z "${{ secrets.COOLIFY_URL }}" ] && missing="$missing COOLIFY_URL"
+          [ -z "${{ secrets.COOLIFY_API_TOKEN }}" ] && missing="$missing COOLIFY_API_TOKEN"
+          [ -z "${{ secrets.COOLIFY_APP_UUID_FRONTEND }}" ] && missing="$missing COOLIFY_APP_UUID_FRONTEND"
+          if [ -n "$missing" ]; then
+            echo "::error::Secret(s) manquant(s) :$missing. Voir DEVOPS.md, section Secrets."
             exit 1
           fi
-          curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}"
+
+      - name: Déclencher le déploiement
+        run: |
+          curl -fsS -X GET \
+            "${{ secrets.COOLIFY_URL }}/api/v1/deploy?uuid=${{ secrets.COOLIFY_APP_UUID_FRONTEND }}" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}"
 
       - name: Résumé
-        run: echo "### Déploiement Render déclenché pour \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "### Déploiement Coolify déclenché pour \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"

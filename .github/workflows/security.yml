@@ -6,7 +6,7 @@
 # l'application déployée et accessible publiquement en continu — hors budget
 # d'un environnement académique éphémère. Voir DEVOPS.md, section « Analyse de
 # sécurité », pour l'alternative retenue (ZAP manuel ponctuel contre
-# l'environnement Render avant la soutenance).
+# l'environnement Coolify avant la soutenance).
 
 name: Security
 
@@ -31,12 +31,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
           queries: security-extended
 
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
         with:
           category: "/language:javascript-typescript"
 
@@ -81,7 +81,7 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: "0"
 
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-fs-results.sarif
           category: trivy-filesystem
@@ -107,7 +107,7 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: "0"
 
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-image-results.sarif
           category: trivy-image

@@ -48,7 +48,7 @@ jobs:
     secrets: inherit
 
   deploy:
-    name: Déploiement (Render)
+    name: Déploiement (Coolify)
     needs: [docker]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/deploy.yml
