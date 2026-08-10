@@ -1,18 +1,14 @@
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
 import LinearProgress from "@mui/material/LinearProgress";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import CheckCircleIcon from "@mui/icons-material/CheckCircleOutlined";
 import CloseIcon from "@mui/icons-material/Close";
-import DownloadIcon from "@mui/icons-material/Download";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import { useState } from "react";
 import { useLocation, useParams } from "wouter";
 
@@ -25,46 +21,19 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { StatusChip } from "@/components/common/StatusChip";
 import {
   useClaimEcgRequest,
-  useEcgFileUrl,
-  useEcgReport,
   useEcgRequest,
   useEcgWaveform,
   useReleaseEcgRequest,
   useReviewEcgRequest,
 } from "@/api/hooks";
-import type {
-  EcgAnalysisResult,
-  EcgRequestFullDetail,
-  ReviewAction,
-} from "@/api/types";
+import type { EcgRequestFullDetail, ReviewAction } from "@/api/types";
 import { EcgDocumentViewer } from "@/components/ecg/EcgDocumentViewer";
+import { EcgInterpretationPanel } from "@/components/ecg/EcgInterpretationPanel";
 import { EcgRecordingContext } from "@/components/ecg/EcgRecordingContext";
 import { EcgWaveformViewer } from "@/components/ecg/EcgWaveformViewer";
-import { describeRedFlag, hasCriticalFlag } from "@/api/redFlags";
 import { useAuth } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/apiClient";
-import { triggerDownload } from "@/lib/download";
 import { confirm, notify } from "@/lib/alerts";
-
-/**
- * Rend les intervalles sous forme compacte, ou rien s'ils sont tous absents.
- *
- * Afficher « PR : — · QRS : — » sur un tracé non mesuré n'informerait pas, il
- * encombrerait.
- */
-function formatIntervals(
-  intervals: EcgAnalysisResult["intervals"]
-): string | null {
-  const parties = [
-    intervals.prMs !== null && `PR ${intervals.prMs} ms`,
-    intervals.qrsMs !== null && `QRS ${intervals.qrsMs} ms`,
-    intervals.qtMs !== null && `QT ${intervals.qtMs} ms`,
-    intervals.qtcMs !== null && `QTc ${intervals.qtcMs} ms`,
-    intervals.axisDegrees !== null && `axe ${intervals.axisDegrees}°`,
-  ].filter((p): p is string => typeof p === "string");
-
-  return parties.length > 0 ? parties.join(" · ") : null;
-}
 
 const DECISION_TITLES: Record<ReviewAction, string> = {
   validate: "Confirmer la validation",
@@ -112,8 +81,6 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
   const claim = useClaimEcgRequest();
   const release = useReleaseEcgRequest();
   const review = useReviewEcgRequest();
-  const fileUrl = useEcgFileUrl();
-  const report = useEcgReport();
   const waveform = useEcgWaveform(request.id);
 
   const mine =
@@ -213,40 +180,6 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
     } catch (error) {
       notify.error(
         "Enregistrement impossible",
-        error instanceof ApiError ? error.message : "Veuillez réessayer."
-      );
-    }
-  };
-
-  /**
-   * Télécharge le compte rendu PDF.
-   *
-   * Action principale : c'est le document lisible et versable au dossier. Le
-   * fichier d'origine reste accessible à côté, mais un XML brut n'a d'intérêt que
-   * pour un autre logiciel.
-   */
-  const handleReport = async () => {
-    try {
-      const { url, fileName } = await report.mutateAsync(request.id);
-      triggerDownload(url, fileName);
-      // L'objet URL est révoqué après le clic : sans cela le blob resterait en
-      // mémoire jusqu'au rechargement de la page.
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    } catch (error) {
-      notify.error(
-        "Compte rendu indisponible",
-        error instanceof ApiError ? error.message : "Veuillez réessayer."
-      );
-    }
-  };
-
-  const handleDownload = async () => {
-    try {
-      const { url, fileName } = await fileUrl.mutateAsync(request.id);
-      triggerDownload(url, fileName);
-    } catch (error) {
-      notify.error(
-        "Téléchargement impossible",
         error instanceof ApiError ? error.message : "Veuillez réessayer."
       );
     }
@@ -394,33 +327,6 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                 </Stack>
               )}
 
-              <Stack
-                direction="row"
-                spacing={1}
-                sx={{ justifyContent: "flex-start", flexWrap: "wrap", gap: 1 }}
-              >
-                <Button
-                  variant="contained"
-                  startIcon={<PictureAsPdfIcon />}
-                  onClick={() => void handleReport()}
-                  loading={report.isPending}
-                >
-                  Compte rendu PDF
-                </Button>
-                <Tooltip title="Fichier d'origine, tel qu'il a été déposé">
-                  <span>
-                    <Button
-                      variant="outlined"
-                      startIcon={<DownloadIcon />}
-                      onClick={() => void handleDownload()}
-                      loading={fileUrl.isPending}
-                    >
-                      Fichier source
-                    </Button>
-                  </span>
-                </Tooltip>
-              </Stack>
-
               <Typography variant="caption" sx={{ color: "text.secondary" }}>
                 {request.file.name} · {request.file.mimeType} ·{" "}
                 {(request.file.sizeBytes / 1024).toFixed(0)} Ko
@@ -509,125 +415,8 @@ function AnalysisView({ request }: { request: EcgRequestFullDetail }) {
                 </InfoPanel>
               )}
 
-              {request.analysis && request.analysis.redFlags.length > 0 && (
-                <InfoPanel
-                  tone={
-                    hasCriticalFlag(request.analysis.redFlags)
-                      ? "error"
-                      : "warning"
-                  }
-                  title={
-                    hasCriticalFlag(request.analysis.redFlags)
-                      ? "Signes d’alarme — demande passée en urgence"
-                      : "Points de vigilance mesurés"
-                  }
-                >
-                  <Stack spacing={1.25} sx={{ mt: 1 }}>
-                    {request.analysis.redFlags.map(code => {
-                      const flag = describeRedFlag(code);
-                      return (
-                        <Stack key={code} spacing={0.25}>
-                          <Stack
-                            direction="row"
-                            spacing={1}
-                            sx={{ alignItems: "center" }}
-                          >
-                            <Chip
-                              label={flag.label}
-                              size="small"
-                              color={
-                                flag.severity === "critical"
-                                  ? "error"
-                                  : "warning"
-                              }
-                            />
-                          </Stack>
-                          <Typography
-                            variant="caption"
-                            sx={{ color: "text.secondary" }}
-                          >
-                            {flag.hint}
-                          </Typography>
-                        </Stack>
-                      );
-                    })}
-                    <Typography variant="caption">
-                      Détectés par des seuils cliniques, indépendamment du
-                      modèle de langage.
-                    </Typography>
-                  </Stack>
-                </InfoPanel>
-              )}
-
-              {request.analysis && !request.analysis.measuredSignal && (
-                <InfoPanel tone="warning" title="Tracé non lu par l'analyseur">
-                  <Typography variant="body2" sx={{ mt: 1 }}>
-                    Aucune mesure n'a pu être extraite du fichier : l'avis
-                    ci-dessous s'appuie uniquement sur le dossier clinique.
-                    Rythme et fréquence restent à établir par votre lecture.
-                  </Typography>
-                </InfoPanel>
-              )}
-
               {request.analysis && (
-                <InfoPanel title="Interprétation proposée par l'IA">
-                  <Stack spacing={1.5} sx={{ mt: 1 }}>
-                    <DetailItem
-                      label="Rythme"
-                      value={request.analysis.rhythmLabel}
-                    />
-                    <DetailItem
-                      label="Fréquence cardiaque"
-                      value={request.analysis.heartRateLabel}
-                    />
-                    <DetailItem
-                      label={
-                        request.analysis.measuredSignal
-                          ? "Anomalies"
-                          : "Points à vérifier"
-                      }
-                      value={
-                        request.analysis.anomalies.length === 0 ? (
-                          "Aucune anomalie détectée"
-                        ) : (
-                          <Stack
-                            direction="row"
-                            spacing={0.5}
-                            sx={{ flexWrap: "wrap", gap: 0.5 }}
-                          >
-                            {request.analysis.anomalies.map(anomaly => (
-                              <Chip
-                                key={anomaly}
-                                label={anomaly}
-                                size="small"
-                                color="warning"
-                              />
-                            ))}
-                          </Stack>
-                        )
-                      }
-                    />
-                    {formatIntervals(request.analysis.intervals) && (
-                      <DetailItem
-                        label="Intervalles"
-                        value={formatIntervals(request.analysis.intervals)}
-                      />
-                    )}
-                    <DetailItem
-                      label="Score de confiance"
-                      value={request.analysis.confidenceLabel}
-                    />
-                    <DetailItem
-                      label="Conclusion"
-                      value={request.analysis.interpretation}
-                    />
-                    <Divider />
-                    <Typography variant="caption">
-                      Modèle {request.analysis.modelVersion} · aide à la
-                      décision, non validée.
-                    </Typography>
-                  </Stack>
-                </InfoPanel>
+                <EcgInterpretationPanel analysis={request.analysis} />
               )}
 
               {mine && !decision && (

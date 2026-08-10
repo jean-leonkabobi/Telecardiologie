@@ -302,8 +302,52 @@ export default function NewECGRequest() {
 
   const values = getValues();
 
-  /** Réglages partagés par tous les contrôles monolignes : une seule hauteur. */
-  const champ = { size: "medium" as const, sx: tallFieldSx };
+  /**
+   * Réglages partagés par tous les contrôles monolignes : une hauteur commune,
+   * et une ligne d'aide resserrée.
+   *
+   * La ligne réservée sous chaque champ (`helperText=" "`) empêche les sauts de
+   * mise en page à l'apparition d'une erreur — mais, à interligne plein, un champ
+   * sans message creuse un vide qui fait paraître le formulaire trop aéré. On la
+   * compacte sans la supprimer : marge et interligne réduits.
+   */
+  const champ = {
+    size: "medium" as const,
+    sx: [
+      tallFieldSx,
+      {
+        "& .MuiFormHelperText-root": {
+          marginTop: "3px",
+          fontSize: "0.72rem",
+          lineHeight: 1.3,
+        },
+      },
+    ],
+  };
+
+  /**
+   * Réglages des champs date (sélecteurs `@mui/x-date-pickers`).
+   *
+   * Les pickers ne reçoivent **pas** `tallFieldSx` : ce correctif vise la classe
+   * `.MuiOutlinedInput-input` et repositionne le libellé à la main, alors qu'un
+   * champ date rend sa valeur dans un conteneur de sections
+   * (`.MuiPickersSectionList`) à la classe différente. Appliqué au picker, le hack
+   * laissait le libellé figé au centre, empêchait sa réduction au focus et gênait
+   * la saisie. Le `size="medium"` natif donne la même hauteur (56 px) que les
+   * autres champs, mais avec le placement du libellé et le masque JJ/MM/AAAA gérés
+   * nativement. On garde la ligne d'aide resserrée, commune au formulaire.
+   */
+  const champDate = {
+    size: "medium" as const,
+    fullWidth: true,
+    sx: {
+      "& .MuiFormHelperText-root": {
+        marginTop: "3px",
+        fontSize: "0.72rem",
+        lineHeight: 1.3,
+      },
+    },
+  };
 
   return (
     <DashboardLayout>
@@ -349,7 +393,7 @@ export default function NewECGRequest() {
                 onSubmit={handleSubmit(onSubmit)}
               >
                 {activeStep === 0 && (
-                  <Stack spacing={3}>
+                  <Stack spacing={2.5}>
                     <Box>
                       <Typography variant="h2">
                         Informations du patient
@@ -408,7 +452,7 @@ export default function NewECGRequest() {
                                 disableFuture
                                 slotProps={{
                                   textField: {
-                                    ...champ,
+                                    ...champDate,
                                     error: Boolean(errors.dateOfBirth),
                                     helperText:
                                       errors.dateOfBirth?.message ?? " ",
@@ -494,7 +538,7 @@ export default function NewECGRequest() {
                 )}
 
                 {activeStep === 1 && (
-                  <Stack spacing={3}>
+                  <Stack spacing={2.5}>
                     <Box>
                       <Typography variant="h2">Examen</Typography>
                       <Typography
@@ -587,7 +631,7 @@ export default function NewECGRequest() {
                                 ampm={false}
                                 slotProps={{
                                   textField: {
-                                    ...champ,
+                                    ...champDate,
                                     error: Boolean(errors.recordedAt),
                                     helperText:
                                       errors.recordedAt?.message ?? " ",
@@ -694,7 +738,7 @@ export default function NewECGRequest() {
                 )}
 
                 {activeStep === 2 && (
-                  <Stack spacing={3}>
+                  <Stack spacing={2.5}>
                     <Typography variant="h2">Contexte clinique</Typography>
 
                     <TextField
