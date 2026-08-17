@@ -38,7 +38,7 @@
     "pnpm": "^10.15.1",
     "prettier": "^3.6.2",
     "typescript": "5.6.3",
-    "vite": "^7.3.6",
+    "vite": "^8.2.1",
     "vite-plugin-manus-runtime": "^0.0.58"
   },
   "pnpm": {
