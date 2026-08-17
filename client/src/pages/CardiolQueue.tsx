@@ -1,14 +1,26 @@
 import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import Divider from "@mui/material/Divider";
 import Grid from "@mui/material/Grid";
+import IconButton from "@mui/material/IconButton";
+import LinearProgress from "@mui/material/LinearProgress";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import CloseIcon from "@mui/icons-material/Close";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircleOutlined";
+import PsychologyIcon from "@mui/icons-material/PsychologyOutlined";
+import { useState } from "react";
 import { useLocation } from "wouter";
 
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -19,7 +31,8 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { QueryBoundary } from "@/components/common/QueryBoundary";
 import { StatCard } from "@/components/common/StatCard";
 import { StatusChip } from "@/components/common/StatusChip";
-import { useClaimEcgRequest, useReviewQueue } from "@/api/hooks";
+import { EcgInterpretationPanel } from "@/components/ecg/EcgInterpretationPanel";
+import { useClaimEcgRequest, useEcgRequest, useReviewQueue } from "@/api/hooks";
 import { formatDuration, type QueueItem } from "@/api/types";
 import { ApiError } from "@/lib/apiClient";
 import { notify } from "@/lib/alerts";
@@ -28,6 +41,16 @@ export default function CardiolQueue() {
   const [, navigate] = useLocation();
   const queue = useReviewQueue();
   const claim = useClaimEcgRequest();
+
+  /**
+   * Demande dont on regarde l'interprétation IA sans encore la prendre.
+   *
+   * Le cardiologue jauge d'abord ce que l'IA propose, puis décide d'entrer dans
+   * le dossier — ou non. On garde l'élément entier plutôt que son seul
+   * identifiant : le dialogue a besoin de `mine`, de la référence et du patient
+   * pour son en-tête, sans attendre le chargement du détail.
+   */
+  const [preview, setPreview] = useState<QueueItem | null>(null);
 
   const items = queue.data ?? [];
   const mine = items.filter(item => item.mine);
@@ -114,6 +137,7 @@ export default function CardiolQueue() {
                     position={null}
                     actionLabel="Reprendre l'analyse"
                     onAction={() => navigate(`/analyze/${item.id}`)}
+                    onPreview={() => setPreview(item)}
                     pending={false}
                   />
                 ))}
@@ -143,6 +167,7 @@ export default function CardiolQueue() {
                     position={index + 1}
                     actionLabel="Prendre en charge"
                     onAction={() => void handleClaim(item)}
+                    onPreview={() => setPreview(item)}
                     /**
                      * Seule la carte cliquée passe en attente.
                      *
@@ -162,6 +187,21 @@ export default function CardiolQueue() {
           </Stack>
         </QueryBoundary>
       </Stack>
+
+      {/**
+       * Aperçu de l'interprétation IA, monté en permanence.
+       *
+       * Le composant reste rendu même sans sélection pour que son `useEcgRequest`
+       * garde un ordre de Hooks stable ; la requête ne part qu'une fois un
+       * élément choisi (`enabled` sur l'identifiant).
+       */}
+      <InterpretationDialog
+        item={preview}
+        onClose={() => setPreview(null)}
+        onClaim={handleClaim}
+        claimPending={claim.isPending}
+        onResume={id => navigate(`/analyze/${id}`)}
+      />
     </DashboardLayout>
   );
 }
@@ -171,6 +211,7 @@ interface QueueCardProps {
   position: number | null;
   actionLabel: string;
   onAction: () => void;
+  onPreview: () => void;
   pending: boolean;
 }
 
@@ -179,6 +220,7 @@ function QueueCard({
   position,
   actionLabel,
   onAction,
+  onPreview,
   pending,
 }: QueueCardProps) {
   const urgent = item.priority === "URGENT";
@@ -295,17 +337,185 @@ function QueueCard({
               {new Date(item.createdAt).toLocaleString("fr-FR")}
             </Typography>
           </Stack>
-
-          <Button
-            variant="contained"
-            onClick={onAction}
-            loading={pending}
-            sx={{ flexShrink: 0 }}
-          >
-            {actionLabel}
-          </Button>
         </Stack>
       </CardContent>
+
+      <Divider />
+
+      {/**
+       * Barre d'actions en pied de carte.
+       *
+       * Deux gestes distincts, séparés visuellement : à gauche, consulter l'avis
+       * de l'IA sans s'engager ; à droite, l'action qui engage — prendre en
+       * charge, ou reprendre son propre dossier. Sur mobile, les boutons passent
+       * en pleine largeur, l'un au-dessus de l'autre.
+       */}
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        sx={{
+          px: 2,
+          py: 1.5,
+          justifyContent: "space-between",
+          alignItems: { sm: "center" },
+        }}
+      >
+        <Button
+          variant="outlined"
+          startIcon={<PsychologyIcon />}
+          onClick={onPreview}
+          sx={{ width: { xs: "100%", sm: "auto" } }}
+        >
+          Voir l'interprétation IA
+        </Button>
+        <Button
+          variant="contained"
+          endIcon={<ArrowForwardIcon />}
+          onClick={onAction}
+          loading={pending}
+          sx={{ width: { xs: "100%", sm: "auto" } }}
+        >
+          {actionLabel}
+        </Button>
+      </Stack>
     </Card>
+  );
+}
+
+interface InterpretationDialogProps {
+  item: QueueItem | null;
+  onClose: () => void;
+  onClaim: (item: QueueItem) => Promise<void>;
+  claimPending: boolean;
+  onResume: (id: string) => void;
+}
+
+/**
+ * Aperçu de l'analyse IA avant de s'engager sur un dossier.
+ *
+ * Le résumé de la file ne porte que le score de confiance ; l'interprétation
+ * complète — rythme, signes d'alarme, conclusion — n'est chargée qu'ici, à la
+ * demande, via le détail de la demande. Le cardiologue lit, puis entre dans le
+ * dossier pour valider, corriger ou rejeter ce que l'IA a proposé.
+ */
+function InterpretationDialog({
+  item,
+  onClose,
+  onClaim,
+  claimPending,
+  onResume,
+}: InterpretationDialogProps) {
+  const detail = useEcgRequest(item?.id);
+  const data = detail.data;
+  const analysisRunning =
+    data?.status === "PENDING_ANALYSIS" || data?.status === "ANALYZING";
+
+  const handlePrimary = async () => {
+    if (!item) return;
+    if (item.mine) {
+      onClose();
+      onResume(item.id);
+      return;
+    }
+    // La prise en charge navigue d'elle-même vers l'analyse en cas de succès ;
+    // en cas d'échec, elle notifie et la file se rafraîchit. Dans les deux cas,
+    // on referme l'aperçu.
+    await onClaim(item);
+    onClose();
+  };
+
+  return (
+    <Dialog
+      open={item !== null}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      scroll="paper"
+    >
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 1,
+        }}
+      >
+        <Stack spacing={0.25} sx={{ minWidth: 0 }}>
+          <Typography variant="h3" component="span">
+            Interprétation IA
+          </Typography>
+          {item && (
+            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+              {item.reference} · {item.patient.fullName} · {item.patient.age}{" "}
+              ans · {item.indicationLabel}
+            </Typography>
+          )}
+        </Stack>
+        <IconButton onClick={onClose} size="small" aria-label="Fermer">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent dividers>
+        <QueryBoundary
+          isLoading={detail.isLoading}
+          error={detail.error}
+          onRetry={() => void detail.refetch()}
+        >
+          {data && (
+            <Stack spacing={2}>
+              {analysisRunning && (
+                <InfoPanel title="Analyse en cours">
+                  <Stack spacing={1.5} sx={{ mt: 1 }}>
+                    <Typography variant="body2">
+                      Le moteur d'analyse traite le tracé. Cet aperçu se met à
+                      jour tout seul.
+                    </Typography>
+                    <LinearProgress />
+                  </Stack>
+                </InfoPanel>
+              )}
+
+              {!analysisRunning && data.analysis === null && (
+                <InfoPanel
+                  tone="warning"
+                  title="Analyse automatique indisponible"
+                >
+                  <Stack spacing={1} sx={{ mt: 1 }}>
+                    <Typography variant="body2">
+                      {data.analysisFailureReason ??
+                        "Le moteur d'analyse n'a pas pu traiter ce tracé."}
+                    </Typography>
+                    <Typography variant="caption">
+                      {data.analysisAttempts} tentative
+                      {data.analysisAttempts > 1 ? "s" : ""}. Le tracé reste
+                      consultable : votre lecture prime sur l'aide automatique.
+                    </Typography>
+                  </Stack>
+                </InfoPanel>
+              )}
+
+              {data.analysis && (
+                <EcgInterpretationPanel analysis={data.analysis} />
+              )}
+            </Stack>
+          )}
+        </QueryBoundary>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button color="inherit" onClick={onClose}>
+          Fermer
+        </Button>
+        <Button
+          variant="contained"
+          endIcon={<ArrowForwardIcon />}
+          loading={item !== null && !item.mine && claimPending}
+          onClick={() => void handlePrimary()}
+        >
+          {item?.mine ? "Reprendre l'analyse" : "Prendre en charge et examiner"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
