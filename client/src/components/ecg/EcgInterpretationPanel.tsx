@@ -69,9 +69,7 @@ export function EcgInterpretationPanel({
                     <Chip
                       label={flag.label}
                       size="small"
-                      color={
-                        flag.severity === "critical" ? "error" : "warning"
-                      }
+                      color={flag.severity === "critical" ? "error" : "warning"}
                     />
                   </Stack>
                   <Typography
