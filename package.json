@@ -38,8 +38,13 @@
     "pnpm": "^10.15.1",
     "prettier": "^3.6.2",
     "typescript": "5.6.3",
-    "vite": "^7.1.7",
+    "vite": "^7.3.6",
     "vite-plugin-manus-runtime": "^0.0.58"
+  },
+  "pnpm": {
+    "overrides": {
+      "nanoid": "3.3.18"
+    }
   },
   "packageManager": "pnpm@10.34.5"
 }
