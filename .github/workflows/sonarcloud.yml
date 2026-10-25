@@ -38,7 +38,7 @@ jobs:
 
       - name: Analyse SonarCloud
         if: steps.check.outputs.configured == 'true'
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
