@@ -30,7 +30,7 @@ jobs:
     name: Vérification des types (tsc)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Pas de `version:` ici : `package.json` déclare déjà
       # `packageManager: pnpm@10.4.1`, que pnpm/action-setup lit tout seul.
@@ -53,7 +53,7 @@ jobs:
     name: Prettier (vérification)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Pas de `version:` ici : `package.json` déclare déjà
       # `packageManager: pnpm@10.4.1`, que pnpm/action-setup lit tout seul.
@@ -96,7 +96,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [typecheck, format-check]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Pas de `version:` ici : `package.json` déclare déjà
       # `packageManager: pnpm@10.4.1`, que pnpm/action-setup lit tout seul.
